@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Liquid Glass Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+
+<style>
+    /* ----------------------------------------------------------- */
+    /* --- RESET & GLOBAL SETTINGS --- */
+    /* ----------------------------------------------------------- */
+    * { box-sizing: border-box; }
+    
+    body {
+        margin: 0;
+        padding: 0;
+        width: 1920px;
+        height: 1080px;
+        background-color: #1E2122;
+        font-family: 'Roboto', sans-serif;
+        overflow: hidden;
+        position: relative;
+    }
+
+    /* =========================================================== */
+    /* === LIQUID GLASS ENGINE (PHYSICS LAYER) === */
+    /* =========================================================== */
+
+    /* --- 1. BASE GLASS CLASS --- */
+    /* NOTE: All variables are now injected by specific component classes below */
+    .glass-panel {
+        position: relative; 
+        width: 100%;
+        height: 100%;
+        background: var(--pill-bg);
+        border-radius: var(--pill-radius);
+    }
+
+    /* --- 2. GLOSS OVERLAY --- */
+    .glass-overlay {
+        position: absolute;
+        inset: 0;
+        border-radius: var(--pill-radius);
+        pointer-events: none;
+        background: var(--glass-gradient);
+        mix-blend-mode: screen;
+        z-index: 2;
+    }
+
+    /* --- 3. TRIM LINES (Surface Glow) --- */
+    .pill__trim {
+        position: absolute;
+        inset: 0;
+        border-radius: var(--pill-radius);
+        pointer-events: none;
+        overflow: hidden;
+        background: radial-gradient(circle at var(--origin), var(--trim-color) 0px, transparent var(--trim-len));
+        background-size: 100% var(--trim-size);
+        background-repeat: no-repeat;
+        opacity: var(--active, 1);
+        z-index: 2;
+    }
+    .pill__trim--tl { --origin: top left; background-position: top left; --active: var(--trim-tl, 1); }
+    .pill__trim--tr { --origin: top right; background-position: top right; --active: var(--trim-tr, 1); }
+    .pill__trim--br { --origin: bottom right; background-position: bottom right; --active: var(--trim-br, 1); }
+    .pill__trim--bl { --origin: bottom left; background-position: bottom left; --active: var(--trim-bl, 1); }
+
+    /* --- 4. CORNER TRIMS (Physical Lines) --- */
+    .pill__corner-trim {
+        position: absolute;
+        width: var(--corner-w);
+        height: var(--corner-h);
+        pointer-events: none;
+        overflow: hidden;
+        opacity: var(--active, 1);
+        background: 0 solid transparent;
+        border: 0 solid transparent;
+        box-sizing: border-box;
+        z-index: 2;
+    }
+    
+    /* Elliptical masks adapt to NEW corner-trim-len variables */
+    .pill__corner-trim--tl { 
+        --active: var(--corner-tl, 1); top: 0; left: 0;
+        border-top: var(--corner-thick) solid var(--trim-color);
+        border-left: var(--corner-thick) solid var(--trim-color);
+        border-radius: var(--pill-radius) 0 0 0; 
+        mask-image: radial-gradient(ellipse var(--corner-trim-len-h) var(--corner-trim-len-v) at top left, black var(--fade-start), transparent 100%);
+        -webkit-mask-image: radial-gradient(ellipse var(--corner-trim-len-h) var(--corner-trim-len-v) at top left, black var(--fade-start), transparent 100%);
+    }
+    .pill__corner-trim--tr { 
+        --active: var(--corner-tr, 1); top: 0; right: 0;
+        border-top: var(--corner-thick) solid var(--trim-color);
+        border-right: var(--corner-thick) solid var(--trim-color);
+        border-radius: 0 var(--pill-radius) 0 0; 
+        mask-image: radial-gradient(ellipse var(--corner-trim-len-h) var(--corner-trim-len-v) at top right, black var(--fade-start), transparent 100%);
+        -webkit-mask-image: radial-gradient(ellipse var(--corner-trim-len-h) var(--corner-trim-len-v) at top right, black var(--fade-start), transparent 100%);
+    }
+    .pill__corner-trim--br { 
+        --active: var(--corner-br, 1); bottom: 0; right: 0;
+        border-bottom: var(--corner-thick) solid var(--trim-color);
+        border-right: var(--corner-thick) solid var(--trim-color);
+        border-radius: 0 0 var(--pill-radius) 0; 
+        mask-image: radial-gradient(ellipse var(--corner-trim-len-h) var(--corner-trim-len-v) at bottom right, black var(--fade-start), transparent 100%);
+        -webkit-mask-image: radial-gradient(ellipse var(--corner-trim-len-h) var(--corner-trim-len-v) at bottom right, black var(--fade-start), transparent 100%);
+    }
+    .pill__corner-trim--bl { 
+        --active: var(--corner-bl, 1); bottom: 0; left: 0;
+        border-bottom: var(--corner-thick) solid var(--trim-color);
+        border-left: var(--corner-thick) solid var(--trim-color);
+        border-radius: 0 0 0 var(--pill-radius); 
+        mask-image: radial-gradient(ellipse var(--corner-trim-len-h) var(--corner-trim-len-v) at bottom left, black var(--fade-start), transparent 100%);
+        -webkit-mask-image: radial-gradient(ellipse var(--corner-trim-len-h) var(--corner-trim-len-v) at bottom left, black var(--fade-start), transparent 100%);
+    }
+
+
+    /* ----------------------------------------------------------- */
+    /* --- 2. INDEPENDENT COMPONENT CONFIGURATIONS --- */
+    /* ----------------------------------------------------------- */
+
+    .layout-container { position: absolute; z-index: 10; }
+    .layer-content { position: absolute; inset: 0; z-index: 10; pointer-events: none; }
+    .pointer-auto { pointer-events: auto; }
+
+
+    /* --- A. LEFT PANEL DASHBOARD --- */
+    .dashboard-position { top: 358px; left: 51px; width: 1428px; height: 607px; }
+    
+    .dashboard-style-overrides {
+        /* --- CONFIG BLOCK --- */
+        --pill-radius: 25px;
+        --pill-bg: rgba(255, 255, 255, 0.001);
+        --trim-color: rgba(217, 217, 217, 0.5);
+        --trim-size: 0.8px;
+        --corner-thick: 0.8px;
+        
+        /* Glow Controls */
+        --trim-len: 600px;
+        
+        /* Physical Corner Line Lengths (Independent) */
+        --corner-trim-len-h: 1200px; /* Horizontal Fade Length */
+        --corner-trim-len-v: 600px; /* Vertical Fade Length - EXTENDED to allow full reach */
+        
+        --fade-start: 10%;
+        --corner-w: 100.1%;
+        --corner-h: 100.1%;
+        --gloss-opacity: 0.055;
+        --glass-gradient: 
+            linear-gradient(175deg, rgba(217,217,217,0.15) 1%, rgba(217,217,217,var(--gloss-opacity)) 6%, rgba(217,217,217,0.001) 75%),
+            linear-gradient(-55deg, rgba(217,217,217,0.05) 10%, rgba(0,0,0,var(--gloss-opacity)) 25%, rgba(0,0,0,0.001) 75%),
+            linear-gradient(-120deg, rgba(0,0,0,0.25) 5%, rgba(0,0,0,var(--gloss-opacity)) 35%, rgba(0,0,0,0.001) 75%),
+            linear-gradient(-4deg, rgba(0,0,0,0.3) 5%, rgba(0,0,0,var(--gloss-opacity)) 15%, rgba(0,0,0,0.001) 75%),
+            linear-gradient(60deg, rgba(0,0,0,0.3) 5%, rgba(0,0,0,var(--gloss-opacity)) 35%, rgba(0,0,0,0.001) 75%);
+
+        
+        /* Toggles */
+        --trim-tl: 1; --trim-tr: 1; --trim-br: 1; --trim-bl: 1;
+        --corner-tl: 1; --corner-tr: 0; --corner-br: 1; --corner-bl: 0;
+    }
+
+    /* --- B. SECTOR PERFORMANCE PANEL --- */
+    .sector-position { top: 358px; left: 1500px; width: 365px; height: 607px; }
+
+    .sector-style-overrides {
+        /* --- CONFIG BLOCK --- */
+        --pill-radius: 25px;
+        --pill-bg: linear-gradient(-180deg, rgba(35, 37, 38, 0.2) 0%, rgba(65, 67, 69, 0.2) 75%);
+        --trim-color: rgba(217, 217, 217, 0.8);
+        --trim-size: 0.8px;
+        --corner-thick: 0.8px;
+        
+        --trim-len: 250px;
+        --corner-trim-len-h: 150px;
+        --corner-trim-len-v: 250px; /* Default */
+        
+        --fade-start: 5%;
+        --corner-w: 50.1%;
+        --corner-h: 50.1%;
+        --gloss-opacity: 0.015;
+        --glass-gradient: 
+            linear-gradient(-45deg, rgba(0,0,0,0.13) 1%, rgba(217,217,217,var(--gloss-opacity)) 25%, rgba(217,217,217,0.001) 75%),
+            linear-gradient(185deg, rgba(0,0,0,0.25) 1%, rgba(0,0,0,var(--gloss-opacity)) 20%, rgba(0,0,0,0.001) 75%);
+
+        /* Toggles */
+        --trim-tl: 0; --trim-tr: 1; --trim-br: 1; --trim-bl: 0;
+        --corner-tl: 1; --corner-tr: 1; --corner-br: 1; --corner-bl: 1;
+    }
+
+    /* --- C. FILTER BOX --- */
+    .filter-position { position: absolute; width: 26px; height: 24px; right: 18.5px; top: 19.5px; z-index: 20; }
+    
+    .filter-style {
+        /* --- CONFIG BLOCK (Scaled for Small Size) --- */
+        --pill-radius: 8px;
+        --pill-bg: rgba(31, 33, 34, 0.2); 
+        --trim-color: rgba(255, 255, 255, 0.7);
+        --trim-size: 2.5px;
+        --corner-thick: 2px;
+        
+        --trim-len: 10px;
+        --corner-trim-len-h: 5px;
+        --corner-trim-len-v: 30px;
+        
+        --fade-start: 5%;
+        --corner-w: 50.1%;
+        --corner-h: 50.1%;
+        --gloss-opacity: 0.15;
+        --glass-gradient: 
+            linear-gradient(50deg, rgba(217,217,217,1.53) 2%, rgba(217,217,217,var(--gloss-opacity)) 35%, rgba(217,217,217,0.001) 45%),
+            linear-gradient(-125deg, rgba(217,217,217,1.53) 2%, rgba(217,217,217,var(--gloss-opacity)) 30%, rgba(217,217,217,0.001) 45%);
+
+        /* Toggles */
+        --trim-tl: 0; --trim-tr: 1; --trim-br: 1; --trim-bl: 0;
+        --corner-tl: 1; --corner-tr: 1; --corner-br: 1; --corner-bl: 1;
+    }
+
+    /* --- D. PLUS ICON BOXES --- */
+    .plus-box-wrapper { position: relative; width: 17px; height: 17px; }
+    
+    .plus-box-style {
+        /* --- CONFIG BLOCK (Scaled for Small Size) --- */
+        --pill-radius: 5px;
+        --pill-bg: rgba(31, 33, 34, 0.1); 
+        --trim-color: rgba(217, 217, 217, 0.4);
+        --trim-size: 1px;
+        --corner-thick: 1px;
+        
+        --trim-len: 100px;
+        --corner-trim-len-h: 100px;
+        --corner-trim-len-v: 100px;
+        
+        --fade-start: 5%;
+        --corner-w: 50.1%;
+        --corner-h: 70.1%;
+        --gloss-opacity: 0.01;
+        --glass-gradient: 
+            linear-gradient(200deg, rgba(217,217,217,0.3) 1%, rgba(217,217,217,var(--gloss-opacity)) 50%, rgba(217,217,217,0.001) 75%),
+            linear-gradient(40deg, rgba(0,0,0,0.3) 10%, rgba(0,0,0,var(--gloss-opacity)) 55%, rgba(0,0,0,0.001) 75%);
+
+        /* Toggles */
+        --trim-tl: 1; --trim-tr: 1; --trim-br: 1; --trim-bl: 1;
+        --corner-tl: 0; --corner-tr: 1; --corner-br: 0; --corner-bl: 1;
+    }
+
+    /* --- E. GREEN PILLS --- */
+    .perf-pill-wrapper { position: relative; width: 76px; height: 24px; }
+
+    .pill-green .pill-style {
+        /* --- CONFIG BLOCK (Scaled for Pill Size) --- */
+        --pill-radius: 5px;
+        --pill-bg: rgba(255, 255, 255, 0.001);
+        --trim-color: rgba(217, 217, 217, 1.05);
+        --trim-size: 0.9px;
+        --corner-thick: 0.5px;
+        
+        --trim-len: 50px;
+        --corner-trim-len-h: 15px;
+        --corner-trim-len-v: 15px;
+        
+        --fade-start: 5%;
+        --corner-w: 50.1%;
+        --corner-h: 50.1%;
+        --gloss-opacity: 0.001;
+        --glass-gradient: 
+            linear-gradient(45deg, rgba(94,122,0,5.1) 1%, rgba(94,122,0,var(--gloss-opacity)) 45%, rgba(94,122,0,0.001) 75%),
+
+        /* Toggles */
+        --trim-tl: 0; --trim-tr: 0; --trim-br: 0; --trim-bl: 0;
+        --corner-tl: 0; --corner-tr: 0; --corner-br: 0; --corner-bl: 0;
+    }
+
+    /* --- F. RED PILLS --- */
+    .pill-red .pill-style {
+        /* --- CONFIG BLOCK (Scaled for Pill Size) --- */
+        --pill-radius: 5px;
+        --pill-bg: rgba(255, 255, 255, 0.001);
+        --trim-color: rgba(217, 217, 217, 1.05);
+        --trim-size: 0.9px;
+        --corner-thick: 0.5px;
+        
+        --trim-len: 50px;
+        --corner-trim-len-h: 15px;
+        --corner-trim-len-v: 15px;
+        
+        --fade-start: 5%;
+        --corner-w: 50.1%;
+        --corner-h: 50.1%;
+        --gloss-opacity: 0.1;
+        --glass-gradient: 
+            linear-gradient(45deg, rgba(217,217,217,0.1) 1%, rgba(217,217,217,var(--gloss-opacity)) 45%, rgba(217,217,217,0.001) 75%),
+            linear-gradient(165deg, rgba(0,0,0,0.15) 10%, rgba(0,0,0,var(--gloss-opacity)) 45%, rgba(0,0,0,0.001) 75%);
+
+        /* Toggles */
+        --trim-tl: 0; --trim-tr: 0; --trim-br: 0; --trim-bl: 0;
+        --corner-tl: 0; --corner-tr: 0; --corner-br: 0; --corner-bl: 0;
+    }
+
+    /* --- DASHBOARD GRID SYSTEM --- */
+    .grid-container {
+        display: grid;
+        padding-left: 18.5px; 
+        padding-right: 18.5px;
+        grid-template-columns: 
+            17.5px 17.5px /* Plus, Gap */
+            42px 27px /* Ticker */
+            64px 27px /* Co */
+            76px 27px /* Price */
+            78px 87px /* Mkt Cap */
+            45px 87px /* Sector (FIXED WIDTH) */
+            110px 27px /* Rev */
+            123px 27px /* R&D */
+            91px 27px /* Share */
+            91px 27px /* Margin */
+            76px 27px /* OCF */
+            68px 27px /* Rule */
+            28px 75px;      /* DTS */
+        align-items: center;
+        width: 100%;
+    }
+
+    /* --- HEADERS --- */
+    .dashboard-header {
+        margin-top: 22px; 
+        padding-bottom: 22px;
+        border-bottom: none; /* Explicitly remove */
+        position: relative; /* Need for absolute line */
+        font-family: 'Roboto';
+        font-weight: 500;
+        font-size: 15px;
+        line-height: 150%;
+        color: #FFFFFF;
+        text-align: center;
+        white-space: nowrap;
+    }
+  
+      /* --- UPDATED: LEFT PANEL LINE LOGIC (Pseudo-element) --- */
+    /* Applies to Header Row and Data Rows */
+    .dashboard-header::after, .data-row::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 53.5px;  /* Padding Left */
+        right: 53.5px; /* Padding Right */
+        height: 1px;
+        background-color: #4E4C4C;
+        /* transform: rotate(180deg); -- Not needed for 1px solid color, but noted */
+    }
+
+    .header-text { display: flex; justify-content: center; width: 100%; }
+    
+    /* --- SCROLLABLE BODY --- */
+    .dashboard-body {
+        position: absolute;
+        top: 55px; /* Offset for header */
+        bottom: 24;
+        left: 0;
+        right: 0;
+        margin-top: 10px;
+        margin-bottom: 24px;
+        bottom: 0px;
+        overflow-y: auto;
+        overflow-x: hidden;
+        padding-bottom: 0px; 
+    }
+
+    .dashboard-body::-webkit-scrollbar { width: 6px; }
+    .dashboard-body::-webkit-scrollbar-track { background: transparent; }
+    .dashboard-body::-webkit-scrollbar-thumb { background: rgba(191, 203, 210, 0.25); border-radius: 1000px; }
+
+    /* --- DATA ROWS --- */
+    .data-row {
+        height: 44px; 
+        border-bottom: none; 
+        position: relative; /* For absolute line */
+        font-family: 'Roboto';
+        font-weight: 300; 
+        font-size: 15px;
+        color: #FFFFFF;
+        text-transform: capitalize;
+    }
+    .data-text { display: flex; justify-content: center; width: 100%; }
+    .align-center { justify-content: center; text-align: center; overflow: visible; white-space: nowrap; }
+
+    /* --- CONTENT ELEMENTS --- */
+    .plus-icon {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .plus-icon svg {
+        width: 11px;
+        height: 11px;
+        stroke: rgba(191, 203, 210, 0.75);
+        stroke-width: 1;
+    }
+
+    .hamburger-icon {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 3px;
+    }
+    
+    .hamburger-line {
+        width: 14px;
+        height: 1px;
+        background-color: #FFFFFF;
+        box-shadow: 1px 1px 4px rgba(0,0,0,0.25);
+    }
+
+    .sector-header {
+        position: relative;
+        font-family: 'Roboto';
+        font-weight: 500;
+        font-size: 16px;
+        letter-spacing: 0.5px;
+        color: rgba(255, 255, 255, 0.85);
+        
+        margin-top: 21.5px;
+        padding-left: 21px;
+        padding-bottom: 21.5px; 
+        
+        border-bottom: 1px solid #4E4C4C;
+        width: 363px;
+        align-self: center;
+    }
+
+    .sector-list {
+        display: flex;
+        flex-direction: column;
+        position: absolute;
+        top: 41px;
+        margin-top: 21.97px;
+        bottom: -15.5px;
+        padding-bottom: 22px; 
+        width: 100%;
+    }
+
+    .sector-row {
+        height: 54.97px;
+        border-bottom: 1px solid #4E4C4C;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        
+        padding-left: 21px;
+        padding-right: 21px;
+        
+        font-family: 'Roboto';
+        font-weight: 300;
+        font-size: 15px;
+        color: #FFFFFF;
+        width: 363px;
+        transform: matrix(-1, 0, 0, -1, 0, 0)
+        align-self: center;
+    }
+    .sector-row:last-child { border-bottom: none; }
+    
+    /* Background Layer (Under Glass) */
+    .pill-bg-layer {
+        position: absolute;
+        inset: 0;
+        border-radius: var(--pill-radius);
+        mix-blend-mode: exclusion;
+        backdrop-filter: blur(5px);
+        z-index: 1;
+    }
+  .pill-green .pill-bg-layer { background: rgba(195, 255, 0, 8);}
+    .pill-red .pill-bg-layer { background: linear-gradient(90deg, rgba(255, 59, 59, 0.8) 0%, rgba(255, 0, 0, 0.8) 96.15%); }
+
+    .pill-data {
+        position: absolute;
+        inset: 0;
+        z-index: 3;
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        padding-right: 8px;
+        margin-top: 1px;
+        gap: 8px;
+        
+        font-family: 'Roboto';
+        font-weight: 400;
+        font-size: 13px; 
+        line-height: 100%;
+    }
+
+    .pill-green .pill-data { color: #425600; text-shadow: 0px 0px 0.75px #425600; }
+    .pill-red .pill-data { color: #520000; text-shadow: 0px 0px 0.75px #7a0000; }
+
+    .badge-arrow {
+        width: 10px; 
+        height: 10px;
+        display: block;
+        overflow: visible;
+    }
+    .badge-arrow path, .badge-arrow line, .badge-arrow polyline {
+        stroke-width: 0.75px; 
+        vector-effect: non-scaling-stroke;
+    }
+    
+    .arrow-green { 
+        color: #425600; 
+        margin-top: 6px;
+        margin-bottom: 9px;
+        filter: drop-shadow(0px 0px 0.75px #425600);
+    }
+    .arrow-red { 
+        color: #560000; 
+        margin-top: 9px;
+        margin-bottom: 6px;
+        filter: drop-shadow(0px 0px 0.75px #560000);
+        transform: rotate(360deg);
+    }
+
+    /* --- DISCLAIMER --- */
+    .disclaimer {
+        position: absolute;
+        top: 1048px;
+        left: 34px;
+        width: 723px;
+        font-family: 'Inter';
+        font-weight: 300;
+        font-size: 10px;
+        line-height: 150%;
+        color: rgba(191, 203, 210, 0.75);
+    }
+
+    .grid-spacer { grid-column: span 1; }
+
+</style>
+</head>
+<body>
+
+    <!-- 1. LEFT PANEL -->
+    <div class="layout-container dashboard-position">
+        <!-- The Glass Panel fills the container -->
+        <div class="glass-panel dashboard-style-overrides">
+            <!-- Glass Elements -->
+            <div class="glass-overlay"></div>
+            <div class="pill__trim pill__trim--tl"></div><div class="pill__trim pill__trim--tr"></div><div class="pill__trim pill__trim--br"></div><div class="pill__trim pill__trim--bl"></div>
+            <div class="pill__corner-trim pill__corner-trim--tl"></div><div class="pill__corner-trim pill__corner-trim--tr"></div><div class="pill__corner-trim pill__corner-trim--br"></div><div class="pill__corner-trim pill__corner-trim--bl"></div>
+            
+            <!-- Content Layer -->
+            <div class="layer-content">
+                
+                <!-- Filter Box -->
+                <div class="filter-position">
+                    <div class="glass-panel filter-style">
+                        <div class="glass-overlay"></div>
+                        <div class="pill__trim pill__trim--tl"></div><div class="pill__trim pill__trim--tr"></div><div class="pill__trim pill__trim--br"></div><div class="pill__trim pill__trim--bl"></div>
+                        <div class="pill__corner-trim pill__corner-trim--tl"></div><div class="pill__corner-trim pill__corner-trim--tr"></div><div class="pill__corner-trim pill__corner-trim--br"></div><div class="pill__corner-trim pill__corner-trim--bl"></div>
+                        
+                        <!-- Hamburger Icon -->
+                        <div class="hamburger-icon">
+                            <div class="hamburger-line"></div>
+                            <div class="hamburger-line"></div>
+                            <div class="hamburger-line"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Header Row -->
+                <div class="grid-container dashboard-header">
+                    <div class="grid-spacer"></div> <div class="grid-spacer"></div>
+                    <div class="header-text">Ticker</div><div class="grid-spacer"></div>
+                    <div class="header-text">Company</div><div class="grid-spacer"></div>
+                    <div class="header-text">Price</div><div class="grid-spacer"></div>
+                    <div class="header-text">Market Cap</div><div class="grid-spacer"></div>
+                    <div class="header-text align-center">Sector</div><div class="grid-spacer"></div>
+                    <div class="header-text">Revenue Growth</div><div class="grid-spacer"></div>
+                    <div class="header-text">R&D % of Revenue</div><div class="grid-spacer"></div>
+                    <div class="header-text">Market Share</div><div class="grid-spacer"></div>
+                    <div class="header-text">Gross Margin</div><div class="grid-spacer"></div>
+                    <div class="header-text">OCF</div><div class="grid-spacer"></div>
+                    <div class="header-text">Rule of 40</div><div class="grid-spacer"></div>
+                    <div class="header-text">DTS</div>
+                </div>
+
+<!-- Scrollable Body -->
+                <div class="dashboard-body pointer-auto">
+                    <!-- Loop for placeholders (3x sets) -->
+                    
+                    <!-- SET 1 -->
+                    <div class="grid-container data-row"><div class="plus-box-wrapper"><div class="glass-panel plus-box-style"><div class="glass-overlay"></div><div class="pill__trim pill__trim--tl"></div><div class="pill__trim pill__trim--tr"></div><div class="pill__trim pill__trim--br"></div><div class="pill__trim pill__trim--bl"></div><div class="pill__corner-trim pill__corner-trim--tl"></div><div class="pill__corner-trim pill__corner-trim--tr"></div><div class="pill__corner-trim pill__corner-trim--br"></div><div class="pill__corner-trim pill__corner-trim--bl"></div><div class="plus-icon"><svg viewBox="0 0 10 10" fill="none"><path d="M5 1V9M1 5H9" stroke="currentColor" stroke-linecap="round"/></svg></div></div></div><div class="grid-spacer"></div><div class="data-text">XYZ</div><div class="grid-spacer"></div><div class="data-text">XYZ</div><div class="grid-spacer"></div><div class="data-text">$000.00</div><div class="grid-spacer"></div><div class="data-text">Small</div><div class="grid-spacer"></div><div class="data-text align-center">Consumer Discretionary</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">$000.00</div><div class="grid-spacer"></div><div class="data-text">20</div><div class="grid-spacer"></div><div class="data-text">10</div></div>
+                    <div class="grid-container data-row"><div class="plus-box-wrapper"><div class="glass-panel plus-box-style"><div class="glass-overlay"></div><div class="pill__trim pill__trim--tl"></div><div class="pill__trim pill__trim--tr"></div><div class="pill__trim pill__trim--br"></div><div class="pill__trim pill__trim--bl"></div><div class="pill__corner-trim pill__corner-trim--tl"></div><div class="pill__corner-trim pill__corner-trim--tr"></div><div class="pill__corner-trim pill__corner-trim--br"></div><div class="pill__corner-trim pill__corner-trim--bl"></div><div class="plus-icon"><svg viewBox="0 0 10 10" fill="none"><path d="M5 1V9M1 5H9" stroke="currentColor" stroke-linecap="round"/></svg></div></div></div><div class="grid-spacer"></div><div class="data-text">XYZ</div><div class="grid-spacer"></div><div class="data-text">XYZ</div><div class="grid-spacer"></div><div class="data-text">$000.00</div><div class="grid-spacer"></div><div class="data-text">Large</div><div class="grid-spacer"></div><div class="data-text align-center">Industrials</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">$000.00</div><div class="grid-spacer"></div><div class="data-text">20</div><div class="grid-spacer"></div><div class="data-text">1</div></div>
+                    <div class="grid-container data-row"><div class="plus-box-wrapper"><div class="glass-panel plus-box-style"><div class="glass-overlay"></div><div class="pill__trim pill__trim--tl"></div><div class="pill__trim pill__trim--tr"></div><div class="pill__trim pill__trim--br"></div><div class="pill__trim pill__trim--bl"></div><div class="pill__corner-trim pill__corner-trim--tl"></div><div class="pill__corner-trim pill__corner-trim--tr"></div><div class="pill__corner-trim pill__corner-trim--br"></div><div class="pill__corner-trim pill__corner-trim--bl"></div><div class="plus-icon"><svg viewBox="0 0 10 10" fill="none"><path d="M5 1V9M1 5H9" stroke="currentColor" stroke-linecap="round"/></svg></div></div></div><div class="grid-spacer"></div><div class="data-text">XYZ</div><div class="grid-spacer"></div><div class="data-text">XYZ</div><div class="grid-spacer"></div><div class="data-text">$000.00</div><div class="grid-spacer"></div><div class="data-text">Mid</div><div class="grid-spacer"></div><div class="data-text align-center">Health Care</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">$000.00</div><div class="grid-spacer"></div><div class="data-text">20</div><div class="grid-spacer"></div><div class="data-text">1</div></div>
+                    <div class="grid-container data-row"><div class="plus-box-wrapper"><div class="glass-panel plus-box-style"><div class="glass-overlay"></div><div class="pill__trim pill__trim--tl"></div><div class="pill__trim pill__trim--tr"></div><div class="pill__trim pill__trim--br"></div><div class="pill__trim pill__trim--bl"></div><div class="pill__corner-trim pill__corner-trim--tl"></div><div class="pill__corner-trim pill__corner-trim--tr"></div><div class="pill__corner-trim pill__corner-trim--br"></div><div class="pill__corner-trim pill__corner-trim--bl"></div><div class="plus-icon"><svg viewBox="0 0 10 10" fill="none"><path d="M5 1V9M1 5H9" stroke="currentColor" stroke-linecap="round"/></svg></div></div></div><div class="grid-spacer"></div><div class="data-text">XYZ</div><div class="grid-spacer"></div><div class="data-text">XYZ</div><div class="grid-spacer"></div><div class="data-text">$000.00</div><div class="grid-spacer"></div><div class="data-text">Mega</div><div class="grid-spacer"></div><div class="data-text align-center">Materials</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">$000.00</div><div class="grid-spacer"></div><div class="data-text">20</div><div class="grid-spacer"></div><div class="data-text">1</div></div>
+                    <div class="grid-container data-row"><div class="plus-box-wrapper"><div class="glass-panel plus-box-style"><div class="glass-overlay"></div><div class="pill__trim pill__trim--tl"></div><div class="pill__trim pill__trim--tr"></div><div class="pill__trim pill__trim--br"></div><div class="pill__trim pill__trim--bl"></div><div class="pill__corner-trim pill__corner-trim--tl"></div><div class="pill__corner-trim pill__corner-trim--tr"></div><div class="pill__corner-trim pill__corner-trim--br"></div><div class="pill__corner-trim pill__corner-trim--bl"></div><div class="plus-icon"><svg viewBox="0 0 10 10" fill="none"><path d="M5 1V9M1 5H9" stroke="currentColor" stroke-linecap="round"/></svg></div></div></div><div class="grid-spacer"></div><div class="data-text">XYZ</div><div class="grid-spacer"></div><div class="data-text">XYZ</div><div class="grid-spacer"></div><div class="data-text">$000.00</div><div class="grid-spacer"></div><div class="data-text">Micro</div><div class="grid-spacer"></div><div class="data-text align-center">Communication Services</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">$000.00</div><div class="grid-spacer"></div><div class="data-text">20</div><div class="grid-spacer"></div><div class="data-text">1</div></div>
+                    <div class="grid-container data-row"><div class="plus-box-wrapper"><div class="glass-panel plus-box-style"><div class="glass-overlay"></div><div class="pill__trim pill__trim--tl"></div><div class="pill__trim pill__trim--tr"></div><div class="pill__trim pill__trim--br"></div><div class="pill__trim pill__trim--bl"></div><div class="pill__corner-trim pill__corner-trim--tl"></div><div class="pill__corner-trim pill__corner-trim--tr"></div><div class="pill__corner-trim pill__corner-trim--br"></div><div class="pill__corner-trim pill__corner-trim--bl"></div><div class="plus-icon"><svg viewBox="0 0 10 10" fill="none"><path d="M5 1V9M1 5H9" stroke="currentColor" stroke-linecap="round"/></svg></div></div></div><div class="grid-spacer"></div><div class="data-text">XYZ</div><div class="grid-spacer"></div><div class="data-text">XYZ</div><div class="grid-spacer"></div><div class="data-text">$000.00</div><div class="grid-spacer"></div><div class="data-text">Small</div><div class="grid-spacer"></div><div class="data-text align-center">Energy</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">$000.00</div><div class="grid-spacer"></div><div class="data-text">20</div><div class="grid-spacer"></div><div class="data-text">1</div></div>
+                    <div class="grid-container data-row"><div class="plus-box-wrapper"><div class="glass-panel plus-box-style"><div class="glass-overlay"></div><div class="pill__trim pill__trim--tl"></div><div class="pill__trim pill__trim--tr"></div><div class="pill__trim pill__trim--br"></div><div class="pill__trim pill__trim--bl"></div><div class="pill__corner-trim pill__corner-trim--tl"></div><div class="pill__corner-trim pill__corner-trim--tr"></div><div class="pill__corner-trim pill__corner-trim--br"></div><div class="pill__corner-trim pill__corner-trim--bl"></div><div class="plus-icon"><svg viewBox="0 0 10 10" fill="none"><path d="M5 1V9M1 5H9" stroke="currentColor" stroke-linecap="round"/></svg></div></div></div><div class="grid-spacer"></div><div class="data-text">XYZ</div><div class="grid-spacer"></div><div class="data-text">XYZ</div><div class="grid-spacer"></div><div class="data-text">$000.00</div><div class="grid-spacer"></div><div class="data-text">Large</div><div class="grid-spacer"></div><div class="data-text align-center">Financials</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">$000.00</div><div class="grid-spacer"></div><div class="data-text">20</div><div class="grid-spacer"></div><div class="data-text">1</div></div>
+                    <div class="grid-container data-row"><div class="plus-box-wrapper"><div class="glass-panel plus-box-style"><div class="glass-overlay"></div><div class="pill__trim pill__trim--tl"></div><div class="pill__trim pill__trim--tr"></div><div class="pill__trim pill__trim--br"></div><div class="pill__trim pill__trim--bl"></div><div class="pill__corner-trim pill__corner-trim--tl"></div><div class="pill__corner-trim pill__corner-trim--tr"></div><div class="pill__corner-trim pill__corner-trim--br"></div><div class="pill__corner-trim pill__corner-trim--bl"></div><div class="plus-icon"><svg viewBox="0 0 10 10" fill="none"><path d="M5 1V9M1 5H9" stroke="currentColor" stroke-linecap="round"/></svg></div></div></div><div class="grid-spacer"></div><div class="data-text">XYZ</div><div class="grid-spacer"></div><div class="data-text">XYZ</div><div class="grid-spacer"></div><div class="data-text">$000.00</div><div class="grid-spacer"></div><div class="data-text">Mid</div><div class="grid-spacer"></div><div class="data-text align-center">Information Technology</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">$000.00</div><div class="grid-spacer"></div><div class="data-text">20</div><div class="grid-spacer"></div><div class="data-text">1</div></div>
+                    <div class="grid-container data-row"><div class="plus-box-wrapper"><div class="glass-panel plus-box-style"><div class="glass-overlay"></div><div class="pill__trim pill__trim--tl"></div><div class="pill__trim pill__trim--tr"></div><div class="pill__trim pill__trim--br"></div><div class="pill__trim pill__trim--bl"></div><div class="pill__corner-trim pill__corner-trim--tl"></div><div class="pill__corner-trim pill__corner-trim--tr"></div><div class="pill__corner-trim pill__corner-trim--br"></div><div class="pill__corner-trim pill__corner-trim--bl"></div><div class="plus-icon"><svg viewBox="0 0 10 10" fill="none"><path d="M5 1V9M1 5H9" stroke="currentColor" stroke-linecap="round"/></svg></div></div></div><div class="grid-spacer"></div><div class="data-text">XYZ</div><div class="grid-spacer"></div><div class="data-text">XYZ</div><div class="grid-spacer"></div><div class="data-text">$000.00</div><div class="grid-spacer"></div><div class="data-text">Mega</div><div class="grid-spacer"></div><div class="data-text align-center">Utilities</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">$000.00</div><div class="grid-spacer"></div><div class="data-text">20</div><div class="grid-spacer"></div><div class="data-text">1</div></div>
+
+                    <!-- SET 2 -->
+                    <div class="grid-container data-row"><div class="plus-box-wrapper"><div class="glass-panel plus-box-style"><div class="glass-overlay"></div><div class="pill__trim pill__trim--tl"></div><div class="pill__trim pill__trim--tr"></div><div class="pill__trim pill__trim--br"></div><div class="pill__trim pill__trim--bl"></div><div class="pill__corner-trim pill__corner-trim--tl"></div><div class="pill__corner-trim pill__corner-trim--tr"></div><div class="pill__corner-trim pill__corner-trim--br"></div><div class="pill__corner-trim pill__corner-trim--bl"></div><div class="plus-icon"><svg viewBox="0 0 10 10" fill="none"><path d="M5 1V9M1 5H9" stroke="currentColor" stroke-linecap="round"/></svg></div></div></div><div class="grid-spacer"></div><div class="data-text">XYZ</div><div class="grid-spacer"></div><div class="data-text">XYZ</div><div class="grid-spacer"></div><div class="data-text">$000.00</div><div class="grid-spacer"></div><div class="data-text">Small</div><div class="grid-spacer"></div><div class="data-text align-center">Consumer Discretionary</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">$000.00</div><div class="grid-spacer"></div><div class="data-text">20</div><div class="grid-spacer"></div><div class="data-text">10</div></div>
+                    <div class="grid-container data-row"><div class="plus-box-wrapper"><div class="glass-panel plus-box-style"><div class="glass-overlay"></div><div class="pill__trim pill__trim--tl"></div><div class="pill__trim pill__trim--tr"></div><div class="pill__trim pill__trim--br"></div><div class="pill__trim pill__trim--bl"></div><div class="pill__corner-trim pill__corner-trim--tl"></div><div class="pill__corner-trim pill__corner-trim--tr"></div><div class="pill__corner-trim pill__corner-trim--br"></div><div class="pill__corner-trim pill__corner-trim--bl"></div><div class="plus-icon"><svg viewBox="0 0 10 10" fill="none"><path d="M5 1V9M1 5H9" stroke="currentColor" stroke-linecap="round"/></svg></div></div></div><div class="grid-spacer"></div><div class="data-text">XYZ</div><div class="grid-spacer"></div><div class="data-text">XYZ</div><div class="grid-spacer"></div><div class="data-text">$000.00</div><div class="grid-spacer"></div><div class="data-text">Large</div><div class="grid-spacer"></div><div class="data-text align-center">Industrials</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">$000.00</div><div class="grid-spacer"></div><div class="data-text">20</div><div class="grid-spacer"></div><div class="data-text">1</div></div>
+                    <div class="grid-container data-row"><div class="plus-box-wrapper"><div class="glass-panel plus-box-style"><div class="glass-overlay"></div><div class="pill__trim pill__trim--tl"></div><div class="pill__trim pill__trim--tr"></div><div class="pill__trim pill__trim--br"></div><div class="pill__trim pill__trim--bl"></div><div class="pill__corner-trim pill__corner-trim--tl"></div><div class="pill__corner-trim pill__corner-trim--tr"></div><div class="pill__corner-trim pill__corner-trim--br"></div><div class="pill__corner-trim pill__corner-trim--bl"></div><div class="plus-icon"><svg viewBox="0 0 10 10" fill="none"><path d="M5 1V9M1 5H9" stroke="currentColor" stroke-linecap="round"/></svg></div></div></div><div class="grid-spacer"></div><div class="data-text">XYZ</div><div class="grid-spacer"></div><div class="data-text">XYZ</div><div class="grid-spacer"></div><div class="data-text">$000.00</div><div class="grid-spacer"></div><div class="data-text">Mid</div><div class="grid-spacer"></div><div class="data-text align-center">Health Care</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">$000.00</div><div class="grid-spacer"></div><div class="data-text">20</div><div class="grid-spacer"></div><div class="data-text">1</div></div>
+                    <div class="grid-container data-row"><div class="plus-box-wrapper"><div class="glass-panel plus-box-style"><div class="glass-overlay"></div><div class="pill__trim pill__trim--tl"></div><div class="pill__trim pill__trim--tr"></div><div class="pill__trim pill__trim--br"></div><div class="pill__trim pill__trim--bl"></div><div class="pill__corner-trim pill__corner-trim--tl"></div><div class="pill__corner-trim pill__corner-trim--tr"></div><div class="pill__corner-trim pill__corner-trim--br"></div><div class="pill__corner-trim pill__corner-trim--bl"></div><div class="plus-icon"><svg viewBox="0 0 10 10" fill="none"><path d="M5 1V9M1 5H9" stroke="currentColor" stroke-linecap="round"/></svg></div></div></div><div class="grid-spacer"></div><div class="data-text">XYZ</div><div class="grid-spacer"></div><div class="data-text">XYZ</div><div class="grid-spacer"></div><div class="data-text">$000.00</div><div class="grid-spacer"></div><div class="data-text">Mega</div><div class="grid-spacer"></div><div class="data-text align-center">Materials</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">$000.00</div><div class="grid-spacer"></div><div class="data-text">20</div><div class="grid-spacer"></div><div class="data-text">1</div></div>
+                    <div class="grid-container data-row"><div class="plus-box-wrapper"><div class="glass-panel plus-box-style"><div class="glass-overlay"></div><div class="pill__trim pill__trim--tl"></div><div class="pill__trim pill__trim--tr"></div><div class="pill__trim pill__trim--br"></div><div class="pill__trim pill__trim--bl"></div><div class="pill__corner-trim pill__corner-trim--tl"></div><div class="pill__corner-trim pill__corner-trim--tr"></div><div class="pill__corner-trim pill__corner-trim--br"></div><div class="pill__corner-trim pill__corner-trim--bl"></div><div class="plus-icon"><svg viewBox="0 0 10 10" fill="none"><path d="M5 1V9M1 5H9" stroke="currentColor" stroke-linecap="round"/></svg></div></div></div><div class="grid-spacer"></div><div class="data-text">XYZ</div><div class="grid-spacer"></div><div class="data-text">XYZ</div><div class="grid-spacer"></div><div class="data-text">$000.00</div><div class="grid-spacer"></div><div class="data-text">Micro</div><div class="grid-spacer"></div><div class="data-text align-center">Communication Services</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">$000.00</div><div class="grid-spacer"></div><div class="data-text">20</div><div class="grid-spacer"></div><div class="data-text">1</div></div>
+                    <div class="grid-container data-row"><div class="plus-box-wrapper"><div class="glass-panel plus-box-style"><div class="glass-overlay"></div><div class="pill__trim pill__trim--tl"></div><div class="pill__trim pill__trim--tr"></div><div class="pill__trim pill__trim--br"></div><div class="pill__trim pill__trim--bl"></div><div class="pill__corner-trim pill__corner-trim--tl"></div><div class="pill__corner-trim pill__corner-trim--tr"></div><div class="pill__corner-trim pill__corner-trim--br"></div><div class="pill__corner-trim pill__corner-trim--bl"></div><div class="plus-icon"><svg viewBox="0 0 10 10" fill="none"><path d="M5 1V9M1 5H9" stroke="currentColor" stroke-linecap="round"/></svg></div></div></div><div class="grid-spacer"></div><div class="data-text">XYZ</div><div class="grid-spacer"></div><div class="data-text">XYZ</div><div class="grid-spacer"></div><div class="data-text">$000.00</div><div class="grid-spacer"></div><div class="data-text">Small</div><div class="grid-spacer"></div><div class="data-text align-center">Energy</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">$000.00</div><div class="grid-spacer"></div><div class="data-text">20</div><div class="grid-spacer"></div><div class="data-text">1</div></div>
+                    <div class="grid-container data-row"><div class="plus-box-wrapper"><div class="glass-panel plus-box-style"><div class="glass-overlay"></div><div class="pill__trim pill__trim--tl"></div><div class="pill__trim pill__trim--tr"></div><div class="pill__trim pill__trim--br"></div><div class="pill__trim pill__trim--bl"></div><div class="pill__corner-trim pill__corner-trim--tl"></div><div class="pill__corner-trim pill__corner-trim--tr"></div><div class="pill__corner-trim pill__corner-trim--br"></div><div class="pill__corner-trim pill__corner-trim--bl"></div><div class="plus-icon"><svg viewBox="0 0 10 10" fill="none"><path d="M5 1V9M1 5H9" stroke="currentColor" stroke-linecap="round"/></svg></div></div></div><div class="grid-spacer"></div><div class="data-text">XYZ</div><div class="grid-spacer"></div><div class="data-text">XYZ</div><div class="grid-spacer"></div><div class="data-text">$000.00</div><div class="grid-spacer"></div><div class="data-text">Large</div><div class="grid-spacer"></div><div class="data-text align-center">Financials</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">$000.00</div><div class="grid-spacer"></div><div class="data-text">20</div><div class="grid-spacer"></div><div class="data-text">1</div></div>
+                    <div class="grid-container data-row"><div class="plus-box-wrapper"><div class="glass-panel plus-box-style"><div class="glass-overlay"></div><div class="pill__trim pill__trim--tl"></div><div class="pill__trim pill__trim--tr"></div><div class="pill__trim pill__trim--br"></div><div class="pill__trim pill__trim--bl"></div><div class="pill__corner-trim pill__corner-trim--tl"></div><div class="pill__corner-trim pill__corner-trim--tr"></div><div class="pill__corner-trim pill__corner-trim--br"></div><div class="pill__corner-trim pill__corner-trim--bl"></div><div class="plus-icon"><svg viewBox="0 0 10 10" fill="none"><path d="M5 1V9M1 5H9" stroke="currentColor" stroke-linecap="round"/></svg></div></div></div><div class="grid-spacer"></div><div class="data-text">XYZ</div><div class="grid-spacer"></div><div class="data-text">XYZ</div><div class="grid-spacer"></div><div class="data-text">$000.00</div><div class="grid-spacer"></div><div class="data-text">Mid</div><div class="grid-spacer"></div><div class="data-text align-center">Information Technology</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">$000.00</div><div class="grid-spacer"></div><div class="data-text">20</div><div class="grid-spacer"></div><div class="data-text">1</div></div>
+                    <div class="grid-container data-row"><div class="plus-box-wrapper"><div class="glass-panel plus-box-style"><div class="glass-overlay"></div><div class="pill__trim pill__trim--tl"></div><div class="pill__trim pill__trim--tr"></div><div class="pill__trim pill__trim--br"></div><div class="pill__trim pill__trim--bl"></div><div class="pill__corner-trim pill__corner-trim--tl"></div><div class="pill__corner-trim pill__corner-trim--tr"></div><div class="pill__corner-trim pill__corner-trim--br"></div><div class="pill__corner-trim pill__corner-trim--bl"></div><div class="plus-icon"><svg viewBox="0 0 10 10" fill="none"><path d="M5 1V9M1 5H9" stroke="currentColor" stroke-linecap="round"/></svg></div></div></div><div class="grid-spacer"></div><div class="data-text">XYZ</div><div class="grid-spacer"></div><div class="data-text">XYZ</div><div class="grid-spacer"></div><div class="data-text">$000.00</div><div class="grid-spacer"></div><div class="data-text">Mega</div><div class="grid-spacer"></div><div class="data-text align-center">Utilities</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">$000.00</div><div class="grid-spacer"></div><div class="data-text">20</div><div class="grid-spacer"></div><div class="data-text">1</div></div>
+
+                    <!-- SET 3 -->
+                    <div class="grid-container data-row"><div class="plus-box-wrapper"><div class="glass-panel plus-box-style"><div class="glass-overlay"></div><div class="pill__trim pill__trim--tl"></div><div class="pill__trim pill__trim--tr"></div><div class="pill__trim pill__trim--br"></div><div class="pill__trim pill__trim--bl"></div><div class="pill__corner-trim pill__corner-trim--tl"></div><div class="pill__corner-trim pill__corner-trim--tr"></div><div class="pill__corner-trim pill__corner-trim--br"></div><div class="pill__corner-trim pill__corner-trim--bl"></div><div class="plus-icon"><svg viewBox="0 0 10 10" fill="none"><path d="M5 1V9M1 5H9" stroke="currentColor" stroke-linecap="round"/></svg></div></div></div><div class="grid-spacer"></div><div class="data-text">XYZ</div><div class="grid-spacer"></div><div class="data-text">XYZ</div><div class="grid-spacer"></div><div class="data-text">$000.00</div><div class="grid-spacer"></div><div class="data-text">Small</div><div class="grid-spacer"></div><div class="data-text align-center">Consumer Discretionary</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">$000.00</div><div class="grid-spacer"></div><div class="data-text">20</div><div class="grid-spacer"></div><div class="data-text">10</div></div>
+                    <div class="grid-container data-row"><div class="plus-box-wrapper"><div class="glass-panel plus-box-style"><div class="glass-overlay"></div><div class="pill__trim pill__trim--tl"></div><div class="pill__trim pill__trim--tr"></div><div class="pill__trim pill__trim--br"></div><div class="pill__trim pill__trim--bl"></div><div class="pill__corner-trim pill__corner-trim--tl"></div><div class="pill__corner-trim pill__corner-trim--tr"></div><div class="pill__corner-trim pill__corner-trim--br"></div><div class="pill__corner-trim pill__corner-trim--bl"></div><div class="plus-icon"><svg viewBox="0 0 10 10" fill="none"><path d="M5 1V9M1 5H9" stroke="currentColor" stroke-linecap="round"/></svg></div></div></div><div class="grid-spacer"></div><div class="data-text">XYZ</div><div class="grid-spacer"></div><div class="data-text">XYZ</div><div class="grid-spacer"></div><div class="data-text">$000.00</div><div class="grid-spacer"></div><div class="data-text">Large</div><div class="grid-spacer"></div><div class="data-text align-center">Industrials</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">$000.00</div><div class="grid-spacer"></div><div class="data-text">20</div><div class="grid-spacer"></div><div class="data-text">1</div></div>
+                    <div class="grid-container data-row"><div class="plus-box-wrapper"><div class="glass-panel plus-box-style"><div class="glass-overlay"></div><div class="pill__trim pill__trim--tl"></div><div class="pill__trim pill__trim--tr"></div><div class="pill__trim pill__trim--br"></div><div class="pill__trim pill__trim--bl"></div><div class="pill__corner-trim pill__corner-trim--tl"></div><div class="pill__corner-trim pill__corner-trim--tr"></div><div class="pill__corner-trim pill__corner-trim--br"></div><div class="pill__corner-trim pill__corner-trim--bl"></div><div class="plus-icon"><svg viewBox="0 0 10 10" fill="none"><path d="M5 1V9M1 5H9" stroke="currentColor" stroke-linecap="round"/></svg></div></div></div><div class="grid-spacer"></div><div class="data-text">XYZ</div><div class="grid-spacer"></div><div class="data-text">XYZ</div><div class="grid-spacer"></div><div class="data-text">$000.00</div><div class="grid-spacer"></div><div class="data-text">Mid</div><div class="grid-spacer"></div><div class="data-text align-center">Health Care</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">$000.00</div><div class="grid-spacer"></div><div class="data-text">20</div><div class="grid-spacer"></div><div class="data-text">1</div></div>
+                    <div class="grid-container data-row"><div class="plus-box-wrapper"><div class="glass-panel plus-box-style"><div class="glass-overlay"></div><div class="pill__trim pill__trim--tl"></div><div class="pill__trim pill__trim--tr"></div><div class="pill__trim pill__trim--br"></div><div class="pill__trim pill__trim--bl"></div><div class="pill__corner-trim pill__corner-trim--tl"></div><div class="pill__corner-trim pill__corner-trim--tr"></div><div class="pill__corner-trim pill__corner-trim--br"></div><div class="pill__corner-trim pill__corner-trim--bl"></div><div class="plus-icon"><svg viewBox="0 0 10 10" fill="none"><path d="M5 1V9M1 5H9" stroke="currentColor" stroke-linecap="round"/></svg></div></div></div><div class="grid-spacer"></div><div class="data-text">XYZ</div><div class="grid-spacer"></div><div class="data-text">XYZ</div><div class="grid-spacer"></div><div class="data-text">$000.00</div><div class="grid-spacer"></div><div class="data-text">Mega</div><div class="grid-spacer"></div><div class="data-text align-center">Materials</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">$000.00</div><div class="grid-spacer"></div><div class="data-text">20</div><div class="grid-spacer"></div><div class="data-text">1</div></div>
+                    <div class="grid-container data-row"><div class="plus-box-wrapper"><div class="glass-panel plus-box-style"><div class="glass-overlay"></div><div class="pill__trim pill__trim--tl"></div><div class="pill__trim pill__trim--tr"></div><div class="pill__trim pill__trim--br"></div><div class="pill__trim pill__trim--bl"></div><div class="pill__corner-trim pill__corner-trim--tl"></div><div class="pill__corner-trim pill__corner-trim--tr"></div><div class="pill__corner-trim pill__corner-trim--br"></div><div class="pill__corner-trim pill__corner-trim--bl"></div><div class="plus-icon"><svg viewBox="0 0 10 10" fill="none"><path d="M5 1V9M1 5H9" stroke="currentColor" stroke-linecap="round"/></svg></div></div></div><div class="grid-spacer"></div><div class="data-text">XYZ</div><div class="grid-spacer"></div><div class="data-text">XYZ</div><div class="grid-spacer"></div><div class="data-text">$000.00</div><div class="grid-spacer"></div><div class="data-text">Micro</div><div class="grid-spacer"></div><div class="data-text align-center">Communication Services</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">$000.00</div><div class="grid-spacer"></div><div class="data-text">20</div><div class="grid-spacer"></div><div class="data-text">1</div></div>
+                    <div class="grid-container data-row"><div class="plus-box-wrapper"><div class="glass-panel plus-box-style"><div class="glass-overlay"></div><div class="pill__trim pill__trim--tl"></div><div class="pill__trim pill__trim--tr"></div><div class="pill__trim pill__trim--br"></div><div class="pill__trim pill__trim--bl"></div><div class="pill__corner-trim pill__corner-trim--tl"></div><div class="pill__corner-trim pill__corner-trim--tr"></div><div class="pill__corner-trim pill__corner-trim--br"></div><div class="pill__corner-trim pill__corner-trim--bl"></div><div class="plus-icon"><svg viewBox="0 0 10 10" fill="none"><path d="M5 1V9M1 5H9" stroke="currentColor" stroke-linecap="round"/></svg></div></div></div><div class="grid-spacer"></div><div class="data-text">XYZ</div><div class="grid-spacer"></div><div class="data-text">XYZ</div><div class="grid-spacer"></div><div class="data-text">$000.00</div><div class="grid-spacer"></div><div class="data-text">Small</div><div class="grid-spacer"></div><div class="data-text align-center">Energy</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">$000.00</div><div class="grid-spacer"></div><div class="data-text">20</div><div class="grid-spacer"></div><div class="data-text">1</div></div>
+                    <div class="grid-container data-row"><div class="plus-box-wrapper"><div class="glass-panel plus-box-style"><div class="glass-overlay"></div><div class="pill__trim pill__trim--tl"></div><div class="pill__trim pill__trim--tr"></div><div class="pill__trim pill__trim--br"></div><div class="pill__trim pill__trim--bl"></div><div class="pill__corner-trim pill__corner-trim--tl"></div><div class="pill__corner-trim pill__corner-trim--tr"></div><div class="pill__corner-trim pill__corner-trim--br"></div><div class="pill__corner-trim pill__corner-trim--bl"></div><div class="plus-icon"><svg viewBox="0 0 10 10" fill="none"><path d="M5 1V9M1 5H9" stroke="currentColor" stroke-linecap="round"/></svg></div></div></div><div class="grid-spacer"></div><div class="data-text">XYZ</div><div class="grid-spacer"></div><div class="data-text">XYZ</div><div class="grid-spacer"></div><div class="data-text">$000.00</div><div class="grid-spacer"></div><div class="data-text">Large</div><div class="grid-spacer"></div><div class="data-text align-center">Financials</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">$000.00</div><div class="grid-spacer"></div><div class="data-text">20</div><div class="grid-spacer"></div><div class="data-text">1</div></div>
+                    <div class="grid-container data-row"><div class="plus-box-wrapper"><div class="glass-panel plus-box-style"><div class="glass-overlay"></div><div class="pill__trim pill__trim--tl"></div><div class="pill__trim pill__trim--tr"></div><div class="pill__trim pill__trim--br"></div><div class="pill__trim pill__trim--bl"></div><div class="pill__corner-trim pill__corner-trim--tl"></div><div class="pill__corner-trim pill__corner-trim--tr"></div><div class="pill__corner-trim pill__corner-trim--br"></div><div class="pill__corner-trim pill__corner-trim--bl"></div><div class="plus-icon"><svg viewBox="0 0 10 10" fill="none"><path d="M5 1V9M1 5H9" stroke="currentColor" stroke-linecap="round"/></svg></div></div></div><div class="grid-spacer"></div><div class="data-text">XYZ</div><div class="grid-spacer"></div><div class="data-text">XYZ</div><div class="grid-spacer"></div><div class="data-text">$000.00</div><div class="grid-spacer"></div><div class="data-text">Mid</div><div class="grid-spacer"></div><div class="data-text align-center">Information Technology</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">$000.00</div><div class="grid-spacer"></div><div class="data-text">20</div><div class="grid-spacer"></div><div class="data-text">1</div></div>
+                    <div class="grid-container data-row"><div class="plus-box-wrapper"><div class="glass-panel plus-box-style"><div class="glass-overlay"></div><div class="pill__trim pill__trim--tl"></div><div class="pill__trim pill__trim--tr"></div><div class="pill__trim pill__trim--br"></div><div class="pill__trim pill__trim--bl"></div><div class="pill__corner-trim pill__corner-trim--tl"></div><div class="pill__corner-trim pill__corner-trim--tr"></div><div class="pill__corner-trim pill__corner-trim--br"></div><div class="pill__corner-trim pill__corner-trim--bl"></div><div class="plus-icon"><svg viewBox="0 0 10 10" fill="none"><path d="M5 1V9M1 5H9" stroke="currentColor" stroke-linecap="round"/></svg></div></div></div><div class="grid-spacer"></div><div class="data-text">XYZ</div><div class="grid-spacer"></div><div class="data-text">XYZ</div><div class="grid-spacer"></div><div class="data-text">$000.00</div><div class="grid-spacer"></div><div class="data-text">Mega</div><div class="grid-spacer"></div><div class="data-text align-center">Utilities</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">100%</div><div class="grid-spacer"></div><div class="data-text">$000.00</div><div class="grid-spacer"></div><div class="data-text">20</div><div class="grid-spacer"></div><div class="data-text">1</div></div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- 2. RIGHT PANEL: SECTOR PERFORMANCE -->
+    <div class="layout-container sector-position">
+        <div class="glass-panel sector-style-overrides">
+             <!-- Glass Elements -->
+             <div class="glass-overlay"></div>
+             <div class="pill__trim pill__trim--tl"></div><div class="pill__trim pill__trim--tr"></div><div class="pill__trim pill__trim--br"></div><div class="pill__trim pill__trim--bl"></div>
+             <div class="pill__corner-trim pill__corner-trim--tl"></div><div class="pill__corner-trim pill__corner-trim--tr"></div><div class="pill__corner-trim pill__corner-trim--br"></div><div class="pill__corner-trim pill__corner-trim--bl"></div>
+
+             <div class="layer-content">
+                 <div class="sector-header">Sector Performance</div>
+
+                 <div class="sector-list">
+                    <div class="sector-row">
+                        <span>Communication Services</span>
+                        <div class="perf-pill-wrapper pill-green">
+                            <div class="glass-panel pill-style">
+                                <div class="pill-bg-layer"></div>
+                                <div class="glass-overlay"></div>
+                                <div class="pill__trim pill__trim--tl"></div><div class="pill__trim pill__trim--br"></div>
+                                <div class="pill-data">
+                                    <svg class="badge-arrow arrow-green" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                                        <line class="arrow-tail" x1="17" y1="7" x2="0" y2="24"></line>
+                                        <polyline points="7 7 17 7 17 17"></polyline>
+                                    </svg>
+                                    1.25%
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="sector-row">
+                        <span>Consumer Discretionary</span>
+                        <div class="perf-pill-wrapper pill-red">
+                            <div class="glass-panel pill-style">
+                                <div class="pill-bg-layer"></div>
+                                <div class="glass-overlay"></div>
+                                <div class="pill__trim pill__trim--tl"></div><div class="pill__trim pill__trim--br"></div>
+                                <div class="pill-data">
+                                    <svg class="badge-arrow arrow-red" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                                        <line class="arrow-tail" x1="17" y1="17" x2="0" y2="0"></line>
+                                        <polyline points="17 7 17 17 7 17"></polyline>
+                                    </svg>
+                                    1.25%
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="sector-row">
+                        <span>Consumer Staples</span>
+                        <div class="perf-pill-wrapper pill-green">
+                            <div class="glass-panel pill-style">
+                                <div class="pill-bg-layer"></div>
+                                <div class="glass-overlay"></div>
+                                <div class="pill__trim pill__trim--tl"></div><div class="pill__trim pill__trim--br"></div>
+                                <div class="pill-data">
+                                    <svg class="badge-arrow arrow-green" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                                        <line class="arrow-tail" x1="17" y1="7" x2="0" y2="24"></line>
+                                        <polyline points="7 7 17 7 17 17"></polyline>
+                                    </svg>
+                                    1.25%
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="sector-row">
+                        <span>Energy</span>
+                        <div class="perf-pill-wrapper pill-red">
+                            <div class="glass-panel pill-style">
+                                <div class="pill-bg-layer"></div>
+                                <div class="glass-overlay"></div>
+                                <div class="pill__trim pill__trim--tl"></div><div class="pill__trim pill__trim--br"></div>
+                                <div class="pill-data">
+                                    <svg class="badge-arrow arrow-red" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                                        <line class="arrow-tail" x1="17" y1="17" x2="0" y2="0"></line>
+                                        <polyline points="17 7 17 17 7 17"></polyline>
+                                    </svg>
+                                    1.25%
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="sector-row">
+                        <span>Financials</span>
+                        <div class="perf-pill-wrapper pill-green">
+                            <div class="glass-panel pill-style">
+                                <div class="pill-bg-layer"></div>
+                                <div class="glass-overlay"></div>
+                                <div class="pill__trim pill__trim--tl"></div><div class="pill__trim pill__trim--br"></div>
+                                <div class="pill-data">
+                                    <svg class="badge-arrow arrow-green" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                                        <line class="arrow-tail" x1="17" y1="7" x2="0" y2="24"></line>
+                                        <polyline points="7 7 17 7 17 17"></polyline>
+                                    </svg>
+                                    1.25%
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="sector-row">
+                        <span>Information Technology</span>
+                        <div class="perf-pill-wrapper pill-red">
+                            <div class="glass-panel pill-style">
+                                <div class="pill-bg-layer"></div>
+                                <div class="glass-overlay"></div>
+                                <div class="pill__trim pill__trim--tl"></div><div class="pill__trim pill__trim--br"></div>
+                                <div class="pill-data">
+                                    <svg class="badge-arrow arrow-red" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                                        <line class="arrow-tail" x1="17" y1="17" x2="0" y2="0"></line>
+                                        <polyline points="17 7 17 17 7 17"></polyline>
+                                    </svg>
+                                    1.25%
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="sector-row">
+                        <span>Health Care</span>
+                        <div class="perf-pill-wrapper pill-green">
+                            <div class="glass-panel pill-style">
+                                <div class="pill-bg-layer"></div>
+                                <div class="glass-overlay"></div>
+                                <div class="pill__trim pill__trim--tl"></div><div class="pill__trim pill__trim--br"></div>
+                                <div class="pill-data">
+                                    <svg class="badge-arrow arrow-green" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                                        <line class="arrow-tail" x1="17" y1="7" x2="0" y2="24"></line>
+                                        <polyline points="7 7 17 7 17 17"></polyline>
+                                    </svg>
+                                    250%
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="sector-row">
+                        <span>Industrials</span>
+                        <div class="perf-pill-wrapper pill-red">
+                            <div class="glass-panel pill-style">
+                                <div class="pill-bg-layer"></div>
+                                <div class="glass-overlay"></div>
+                                <div class="pill__trim pill__trim--tl"></div><div class="pill__trim pill__trim--br"></div>
+                                <div class="pill-data">
+                                    <svg class="badge-arrow arrow-red" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                                        <line class="arrow-tail" x1="17" y1="17" x2="0" y2="0"></line>
+                                        <polyline points="17 7 17 17 7 17"></polyline>
+                                    </svg>
+                                    1.25%
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="sector-row">
+                        <span>Materials</span>
+                        <div class="perf-pill-wrapper pill-green">
+                            <div class="glass-panel pill-style">
+                                <div class="pill-bg-layer"></div>
+                                <div class="glass-overlay"></div>
+                                <div class="pill__trim pill__trim--tl"></div><div class="pill__trim pill__trim--br"></div>
+                                <div class="pill-data">
+                                    <svg class="badge-arrow arrow-green" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                                        <line class="arrow-tail" x1="17" y1="7" x2="0" y2="24"></line>
+                                        <polyline points="7 7 17 7 17 17"></polyline>
+                                    </svg>
+                                    1.25%
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="sector-row">
+                        <span>Utilities</span>
+                        <div class="perf-pill-wrapper pill-red">
+                            <div class="glass-panel pill-style">
+                                <div class="pill-bg-layer"></div>
+                                <div class="glass-overlay"></div>
+                                <div class="pill__trim pill__trim--tl"></div><div class="pill__trim pill__trim--br"></div>
+                                <div class="pill-data">
+                                    <svg class="badge-arrow arrow-red" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                                        <line class="arrow-tail" x1="17" y1="17" x2="0" y2="0"></line>
+                                        <polyline points="17 7 17 17 7 17"></polyline>
+                                    </svg>
+                                    1.25%
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                 </div>
+             </div>
+        </div>
+    </div>
+
+    <!-- 3. BOTTOM DISCLAIMER -->
+    <div class="disclaimer">
+        All data is provided for informational purposes only and is not intended for trading purposes or financial, investment, tax, legal, accounting, or other advice.
+    </div>
+
+</body>
+</html>
