@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1920, height=1080, initial-scale=1.0">
+<title>TACT Interface - Liquid Glass</title>
+<style>
+    /* ----------------------------------------------------------- */
+    /* --- USER'S CORE STYLES (Preserved from Prompt) --- */
+    /* ----------------------------------------------------------- */
+    :root {
+        /* --- GLASS SETTINGS --- */
+        --pill-radius: 15px;
+        --trim-size: 0.6px;
+        --corner-thick: 0.3px;
+        --trim-color: rgba(217, 217, 217, 0.8);
+        --pill-bg: rgba(31, 33, 34, 0.1);
+        --gloss-opacity: 0.015;
+      
+        /* --- CORNER & FADE CONTROLS --- */
+        /* Fade Start: % of the line that is solid black before fading */
+        --fade-start: 25%;
+      
+        /* Independent Fade Lengths */
+        --fade-h: 20px; /* Horizontal Fade Length */
+        --fade-v: 100px; /* Vertical Fade Length */
+      
+        /* Surface Glow Length */
+        --trim-len: 200px; 
+      
+        /* Physical Line Dimensions (Container Size) */
+        --corner-w: 20%; /* Horizontal reach */
+        --corner-h: 80%; /* Vertical reach */
+      
+      /* --- VISIBILITY TOGGLES --- */
+      --trim-tl: 1; --trim-tr: 0; --trim-br: 1; --trim-bl: 0;
+      --corner-tl: 1; --corner-tr: 0; --corner-br: 1; --corner-bl: 0;
+      
+      /* --- GLOSS --- */
+      --gloss-opacity: 0.01;
+    }
+    
+    /* BODY & CONTAINER */
+    body {
+      background: #1E2122;
+      width: 1920px;
+      height: 1080px;
+      font-family: 'Roboto', sans-serif; 
+      margin: 0;
+      padding: 0;
+      overflow: hidden; 
+      position: relative;
+    }
+    
+    /* HEADER CONTAINER */
+    .header {
+      position: absolute;
+      width: 1920px;
+      height: 1080px;
+      top: 0;
+      left: 0;
+      display: block; 
+    }
+
+    /* Logo Area */
+    .logo-area {
+        position: static;
+        display: block;
+        width: auto;
+        height: auto;
+    }
+
+    /* TACT Logo */
+    .logo {
+        position: absolute;
+        /* Width matching previous text width to maintain tagline gap calculation */
+        width: 120.13px; 
+        height: auto; /* Maintains aspect ratio */
+        max-height: 34px; /* Ensure it doesn't exceed header height */
+        left: 51px;
+        top: 37px; /* Aligned with Nav Pills */
+        
+        object-fit: contain; /* Keeps image clear */
+        filter: drop-shadow(0px 4px 4px rgba(0, 0, 0, 0.25));
+        z-index: 10;
+        display: block;
+    }
+
+    /* TAGLINE ALIGNMENT */
+    .tagline {
+        position: absolute;
+        width: 344px; 
+        height: auto;
+        left: 205px;
+        top: 37px;
+        
+        font-size: 12px;
+        color: #C3FF00;
+        line-height: 1.5; 
+        opacity: 0.8; 
+        display: block;
+        z-index: 10;
+    }
+    
+    .tagline strong { font-weight: 700; }
+    .tagline em { font-style: italic; font-weight: 400; opacity: 0.9; }
+
+    /* NAVIGATION PILLS POSITIONING */
+    .nav-center {
+        position: static;
+        display: block;
+        transform: none;
+    }
+    .nav-center .pill:nth-child(1) { position: absolute; left: 680px; top: 37px; width: 161px; height: 40px; }
+    .nav-center .pill:nth-child(2) { position: absolute; left: 876px; top: 37px; width: 161px; height: 40px; }
+    .nav-center .pill:nth-child(3) { position: absolute; left: 1072px; top: 37px; width: 161px; height: 40px; }
+    .nav-center .pill:nth-child(4) { position: absolute; left: 1269px; top: 37px; width: 161px; height: 40px; }
+
+    /* RIGHT SECTION */
+    .nav-right {
+        position: static;
+        display: block;
+        width: auto;
+    }
+
+    /* SEARCH BAR */
+    .pill.search-variant {
+        position: absolute;
+        left: 1561px;
+        top: 37px;
+        width: 304px;
+        height: 40px; 
+        margin: 0;
+    }
+
+    .pill.search-variant .pill__content {
+        justify-content: flex-start; 
+        padding-left: 15px; 
+        width: 100%;
+        box-sizing: border-box;
+        
+        font-family: 'Roboto', sans-serif;
+        font-size: 12px; 
+        font-weight: 400;
+        color: #BFCBD2;
+        opacity: 1.0; 
+        filter: blur(0.5px); 
+        text-shadow: 0 1px 3px rgba(0,0,0,0.8); 
+    }
+
+    .search-icon-svg {
+        position: absolute;
+        left: 266px; 
+        top: 50%;
+        transform: translateY(-50%);
+        width: 18px;
+        height: 18px;
+        color: rgba(195, 255, 0, 0.75);
+    }
+
+
+    /* =========================================================== */
+    /* === LIQUID GLASS ENGINE (FROM REFERENCE CODE) === */
+    /* =========================================================== */
+
+      /* --- GLASS OVERLAY CLASSES --- */
+    .glass-panel {
+      position: absolute;
+      background: var(--pill-bg);
+      border-radius: var(--pill-radius);
+    }  
+  
+    /* --- 1. BASE GLASS CLASS (PILL) --- */
+    .pill {
+      position: absolute;
+      border-radius: var(--pill-radius);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: var(--pill-bg);
+      backdrop-filter: blur(0px) saturate(180%);
+      -webkit-backdrop-filter: blur(0px) saturate(180%);
+      /* overflow: hidden; REMOVED per reference code to allow outlines if needed, but keeping for pill shape */
+      overflow: hidden; 
+      cursor: pointer;
+      z-index: 20;
+    }
+
+    /* --- 2. GLOSS OVERLAY --- */
+    .pill::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: var(--pill-radius);
+      pointer-events: none;
+      background: 
+        linear-gradient(-39deg, rgba(217,217,217,0.03) 1%, rgba(217,217,217,var(--gloss-opacity)) 15%, rgba(217,217,217,0.001) 75%),
+        linear-gradient(-3.5deg, rgba(217,217,217,0.04) 0.5%, rgba(217,217,217,var(--gloss-opacity)) 25%, rgba(217,217,217,0.001) 75%),
+        linear-gradient(165deg, rgba(0,0,0,0.15) 10%, rgba(0,0,0,var(--gloss-opacity)) 45%, rgba(0,0,0,0.001) 75%),
+        linear-gradient(-176deg, rgba(0,0,0,0.325) 1%, rgba(0,0,0,var(--gloss-opacity)) 30%, rgba(3,42,52,.001) 75%),
+        linear-gradient(55deg, rgba(0,0,0,0.15) 5%, rgba(0,0,0,var(--gloss-opacity)) 25%, rgba(255,255,255,0.001) 75%);
+        mix-blend-mode: screen;
+      z-index: 2; 
+    }
+    
+    /* Search Variant Gloss Override */
+    .pill.search-variant::after {
+        background: 
+            linear-gradient(55deg, rgba(0,0,0,1.0) 5%, rgba(0,0,0,0.3) 35%, rgba(255,255,255,0.001) 75%),
+          linear-gradient(-25deg, rgba(0,0,0,5.5) 20%, rgba(0,0,0,var(--gloss-opacity)) 35%, rgba(255,255,255,0.001) 75%),
+          linear-gradient(-3deg, rgba(217,217,217,0.01) 1%, rgba(217,217,217,var(--gloss-opacity)) 25%, rgba(217,217,217,0.001) 75%);
+        mix-blend-mode: screen; 
+    }
+
+    /* --- 3. TRIM LINES (Surface Glow - EXACT REFERENCE LOGIC) --- */
+    .pill__trim {
+        position: absolute;
+        inset: 0;
+        border-radius: var(--pill-radius);
+        pointer-events: none;
+        overflow: hidden;
+        background: radial-gradient(circle at var(--origin), var(--trim-color) 0px, transparent var(--trim-len));
+        background-size: 100% var(--trim-size);
+        background-repeat: no-repeat;
+        opacity: var(--active, 1);
+        z-index: 2;
+    }
+    .pill__trim--tl { --origin: top left; background-position: top left; --active: var(--trim-tl, 1); }
+    .pill__trim--tr { --origin: top right; background-position: top right; --active: var(--trim-tr, 1); }
+    .pill__trim--br { --origin: bottom right; background-position: bottom right; --active: var(--trim-br, 1); }
+    .pill__trim--bl { --origin: bottom left; background-position: bottom left; --active: var(--trim-bl, 1); }
+
+    /* --- 4. CORNER TRIMS (Physical Lines - EXACT REFERENCE LOGIC) --- */
+    .pill__corner-trim {
+        position: absolute;
+        /* CONTROL RESTORED: Width and Height are now independent */
+        width: var(--corner-w, var(--pill-radius)); 
+        height: var(--corner-h, var(--pill-radius));
+        pointer-events: none;
+        overflow: hidden;
+        opacity: var(--active, 1);
+        background: 0 solid transparent;
+        border: 0 solid transparent;
+        box-sizing: border-box;
+        z-index: 2;
+    }
+    
+    /* Radial Gradient Mask for Smooth Fades */
+      .pill__corner-trim--tl { 
+      --active: var(--corner-tl); top: 0; left: 0;
+      border-top: var(--corner-thick) solid var(--trim-color);
+      border-left: var(--corner-thick) solid var(--trim-color);
+      border-radius: var(--pill-radius) 0 0 0; 
+      mask-image: radial-gradient(ellipse var(--fade-h) var(--fade-v) at top left, black var(--fade-start), transparent 100%);
+      -webkit-mask-image: radial-gradient(ellipse var(--fade-h) var(--fade-v) at top left, black var(--fade-start), transparent 100%);
+    }
+    .pill__corner-trim--tr { 
+      --active: var(--corner-tr); top: 0; right: 0;
+      border-top: var(--corner-thick) solid var(--trim-color);
+      border-right: var(--corner-thick) solid var(--trim-color);
+      border-radius: 0 var(--pill-radius) 0 0; 
+      mask-image: radial-gradient(ellipse var(--fade-h) var(--fade-v) at top right, black var(--fade-start), transparent 100%);
+      -webkit-mask-image: radial-gradient(ellipse var(--fade-h) var(--fade-v) at top right, black var(--fade-start), transparent 100%);
+    }
+    .pill__corner-trim--br { 
+      --active: var(--corner-br); bottom: 0; right: 0;
+      border-bottom: var(--corner-thick) solid var(--trim-color);
+      border-right: var(--corner-thick) solid var(--trim-color);
+      border-radius: 0 0 var(--pill-radius) 0; 
+      mask-image: radial-gradient(ellipse var(--fade-h) var(--fade-v) at bottom right, black var(--fade-start), transparent 100%);
+      -webkit-mask-image: radial-gradient(ellipse var(--fade-h) var(--fade-v) at bottom right, black var(--fade-start), transparent 100%);
+    }
+    .pill__corner-trim--bl { 
+      --active: var(--corner-bl); bottom: 0; left: 0;
+      border-bottom: var(--corner-thick) solid var(--trim-color);
+      border-left: var(--corner-thick) solid var(--trim-color);
+      border-radius: 0 0 0 var(--pill-radius); 
+      mask-image: radial-gradient(ellipse var(--fade-h) var(--fade-v) at bottom left, black var(--fade-start), transparent 100%);
+      -webkit-mask-image: radial-gradient(ellipse var(--fade-h) var(--fade-v) at bottom left, black var(--fade-start), transparent 100%);
+    }
+
+    /* --- PILL CONTENT --- */
+    .pill__content {
+      position: relative;
+      z-index: 1;
+      font-size: 18px; 
+      font-weight: 450;
+      color: rgba(191, 203, 210, 0.75);
+      text-align: center;
+      line-height: 1;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap; 
+      justify-content: center;
+    }
+    .pill__icon {
+      width: 12px !important;
+      height: 15px !important;
+      opacity: 1;
+      display: block;
+      flex-shrink: 0;
+      transform: translateY(2px); 
+    }
+  
+      /* HELPER: Link trim classes to CSS variables */
+    .pill__trim--tl { --active: var(--trim-tl); }
+    .pill__trim--tr { --active: var(--trim-tr); }
+    .pill__trim--br { --active: var(--trim-br); }
+    .pill__trim--bl { --active: var(--trim-bl); }
+    .pill__corner-trim--tl { --active: var(--corner-tl); }
+    .pill__corner-trim--tr { --active: var(--corner-tr); }
+    .pill__corner-trim--br { --active: var(--corner-br); }
+    .pill__corner-trim--bl { --active: var(--corner-bl); }
+    
+    /* Variant Toggles */
+    .pill.datasets-variant { --corner-tr: 0; }
+    
+    /* --- SEARCH BAR INDEPENDENT CONFIGURATION --- */
+    .pill.search-variant {
+        /* --- GLASS SETTINGS --- */
+        --pill-radius: 15px;
+        --trim-size: 0.6px;
+        --corner-thick: 0.3px;
+        --trim-color: rgba(217, 217, 217, 0.8);
+        --pill-bg: linear-gradient(180deg, rgba(35, 37, 38, 0.55) 0%, rgba(65, 67, 69, 0.55) 75%);
+        --gloss-opacity: 0.01;
+        
+        /* --- CORNER & FADE CONTROLS --- */
+        /* Fade Start: % of the line that is solid black before fading */
+        --fade-start: 25%;
+      
+        /* Independent Fade Lengths */
+        --fade-h: 20px; /* Horizontal Fade Length */
+        --fade-v: 100px; /* Vertical Fade Length */
+      
+        /* Surface Glow Length */
+        --trim-len: 350px; 
+      
+        /* Physical Line Dimensions (Container Size) */
+        --corner-w: 20%; /* Horizontal reach */
+        --corner-h: 80%; /* Vertical reach */
+      
+      /* --- VISIBILITY TOGGLES --- */
+      --trim-tl: 0; --trim-tr: 1; --trim-br: 0; --trim-bl: 1;
+      --corner-tl: 0; --corner-tr: 1; --corner-br: 0; --corner-bl: 1;
+
+        cursor: default;
+    }
+</style>
+</head>
+<body>
+
+<header class="header">
+    <div class="logo-area">
+        <img class="logo" src="https://placehold.co/85x24/1E2122/C3FF00?text=LOGO" alt="TACT Logo">
+        
+        <!-- FIXED TAGLINE -->
+        <div class="tagline">
+            <strong>Techno Anthropologic Crisis [Theory]</strong> <em>n. The existential fear of technological advancements’ threat to simplistic norms.</em>
+        </div>
+    </div>
+
+    <!-- Center: Navigation Pills -->
+    <div class="nav-center">
+        <!-- 1. DATASETS -->
+        <div class="pill datasets-variant" role="button">
+            <div class="pill__trim pill__trim--tl"></div><div class="pill__trim pill__trim--br"></div><div class="pill__trim pill__trim--tr"></div><div class="pill__trim pill__trim--bl"></div>
+            <div class="pill__corner-trim pill__corner-trim--tl"></div><div class="pill__corner-trim pill__corner-trim--br"></div><div class="pill__corner-trim pill__corner-trim--bl"></div><div class="pill__corner-trim pill__corner-trim--tr"></div>
+            <div class="pill__content">
+                Datasets 
+                <svg class="pill__icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="butt" stroke-linejoin="miter">
+                  <path d="M4 9 L12 17 L20 9" />
+                </svg>
+            </div>
+        </div>
+
+        <!-- 2. ANALYTICS -->
+        <div class="pill" role="button">
+            <div class="pill__trim pill__trim--tl"></div><div class="pill__trim pill__trim--br"></div><div class="pill__trim pill__trim--tr"></div><div class="pill__trim pill__trim--bl"></div>
+            <div class="pill__corner-trim pill__corner-trim--tl"></div><div class="pill__corner-trim pill__corner-trim--br"></div><div class="pill__corner-trim pill__corner-trim--bl"></div><div class="pill__corner-trim pill__corner-trim--tr"></div>
+            <div class="pill__content">Analytics</div>
+        </div>
+
+        <!-- 3. WATCHLIST -->
+        <div class="pill" role="button">
+            <div class="pill__trim pill__trim--tl"></div><div class="pill__trim pill__trim--br"></div><div class="pill__trim pill__trim--tr"></div><div class="pill__trim pill__trim--bl"></div>
+            <div class="pill__corner-trim pill__corner-trim--tl"></div><div class="pill__corner-trim pill__corner-trim--br"></div><div class="pill__corner-trim pill__corner-trim--bl"></div><div class="pill__corner-trim pill__corner-trim--tr"></div>
+            <div class="pill__content">Watchlist</div>
+        </div>
+
+        <!-- 5. MORE -->
+        <div class="pill" role="button">
+            <div class="pill__trim pill__trim--tl"></div><div class="pill__trim pill__trim--br"></div><div class="pill__trim pill__trim--tr"></div><div class="pill__trim pill__trim--bl"></div>
+            <div class="pill__corner-trim pill__corner-trim--tl"></div><div class="pill__corner-trim pill__corner-trim--br"></div><div class="pill__corner-trim pill__corner-trim--bl"></div><div class="pill__corner-trim pill__corner-trim--tr"></div>
+            <div class="pill__content">
+                More 
+                <svg class="pill__icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="butt" stroke-linejoin="miter">
+                  <path d="M4 9 L12 17 L20 9" />
+                </svg>
+            </div>
+        </div>
+    </div>
+
+    <div class="nav-right">
+        <!-- SEARCH BAR -->
+        <div class="pill search-variant">
+            <div class="pill__trim pill__trim--tl"></div><div class="pill__trim pill__trim--br"></div><div class="pill__trim pill__trim--tr"></div><div class="pill__trim pill__trim--bl"></div>
+            <div class="pill__corner-trim pill__corner-trim--tl"></div><div class="pill__corner-trim pill__corner-trim--br"></div><div class="pill__corner-trim pill__corner-trim--bl"></div><div class="pill__corner-trim pill__corner-trim--tr"></div>
+            
+            <div class="pill__content">
+                Search for company or ticker
+                <!-- ENLARGED SVG ICON -->
+                <svg class="search-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+            </div>
+        </div>
+    </div>
+</header>
+
+</body>
+</html>
