@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1920, height=1080, initial-scale=1.0">
+<title>TACT Mid-Page Elements</title>
+<!-- IMPORT ROBOTO FONT -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
+
+<style>
+    body {
+      background: #1E2122;
+      width: 1920px;
+      height: 1080px;
+      font-family: 'Roboto', sans-serif; 
+      margin: 0;
+      padding: 0;
+      overflow: hidden; 
+      position: relative;
+    }
+
+    /* ----------------------------------------------------------- */
+    /* --- LIQUID GLASS ENGINE --- */
+    /* ----------------------------------------------------------- */
+    
+    /* --- GLASS OVERLAY CLASSES --- */
+    .glass-panel {
+      position: absolute;
+      background: var(--pill-bg);
+      border-radius: var(--pill-radius);
+    }
+
+    /* TRIM LINES (Surface Glow) */
+    .pill__trim {
+      position: absolute;
+      inset: 0;
+      border-radius: var(--pill-radius);
+      pointer-events: none;
+      overflow: hidden;
+      background: radial-gradient(circle at var(--origin), var(--trim-color) 0px, transparent var(--trim-len));
+      background-size: 100% var(--trim-size);
+      background-repeat: no-repeat;
+      opacity: var(--active, 1);
+      z-index: 2;
+    }
+    .pill__trim--tl { --origin: top left; background-position: top left; }
+    .pill__trim--tr { --origin: top right; background-position: top right; }
+    .pill__trim--br { --origin: bottom right; background-position: bottom right; }
+    .pill__trim--bl { --origin: bottom left; background-position: bottom left; }
+    
+    /* CORNER TRIMS (Physical Border Lines) */
+    .pill__corner-trim {
+      position: absolute;
+      /* CONTROL RESTORED: Width and Height are now independent */
+      width: var(--corner-w, var(--pill-radius)); 
+      height: var(--corner-h, var(--pill-radius));
+      pointer-events: none;
+      overflow: hidden;
+      opacity: var(--active, 1);
+      background: 0 solid transparent; 
+      border: 0 solid transparent;
+      box-sizing: border-box;
+      z-index: 2;
+    }
+
+    /* Radial Gradient Mask for Smooth Fades */
+      .pill__corner-trim--tl { 
+      --active: var(--corner-tl); top: 0; left: 0;
+      border-top: var(--corner-thick) solid var(--trim-color);
+      border-left: var(--corner-thick) solid var(--trim-color);
+      border-radius: var(--pill-radius) 0 0 0; 
+      mask-image: radial-gradient(ellipse var(--fade-h) var(--fade-v) at top left, black var(--fade-start), transparent 100%);
+      -webkit-mask-image: radial-gradient(ellipse var(--fade-h) var(--fade-v) at top left, black var(--fade-start), transparent 100%);
+    }
+    .pill__corner-trim--tr { 
+      --active: var(--corner-tr); top: 0; right: 0;
+      border-top: var(--corner-thick) solid var(--trim-color);
+      border-right: var(--corner-thick) solid var(--trim-color);
+      border-radius: 0 var(--pill-radius) 0 0; 
+      mask-image: radial-gradient(ellipse var(--fade-h) var(--fade-v) at top right, black var(--fade-start), transparent 100%);
+      -webkit-mask-image: radial-gradient(ellipse var(--fade-h) var(--fade-v) at top right, black var(--fade-start), transparent 100%);
+    }
+    .pill__corner-trim--br { 
+      --active: var(--corner-br); bottom: 0; right: 0;
+      border-bottom: var(--corner-thick) solid var(--trim-color);
+      border-right: var(--corner-thick) solid var(--trim-color);
+      border-radius: 0 0 var(--pill-radius) 0; 
+      mask-image: radial-gradient(ellipse var(--fade-h) var(--fade-v) at bottom right, black var(--fade-start), transparent 100%);
+      -webkit-mask-image: radial-gradient(ellipse var(--fade-h) var(--fade-v) at bottom right, black var(--fade-start), transparent 100%);
+    }
+    .pill__corner-trim--bl { 
+      --active: var(--corner-bl); bottom: 0; left: 0;
+      border-bottom: var(--corner-thick) solid var(--trim-color);
+      border-left: var(--corner-thick) solid var(--trim-color);
+      border-radius: 0 0 0 var(--pill-radius); 
+      mask-image: radial-gradient(ellipse var(--fade-h) var(--fade-v) at bottom left, black var(--fade-start), transparent 100%);
+      -webkit-mask-image: radial-gradient(ellipse var(--fade-h) var(--fade-v) at bottom left, black var(--fade-start), transparent 100%);
+    }
+
+    /* GLOSS GRADIENT OVERLAY */
+    .glass-overlay {
+      position: absolute;
+      inset: 0;
+      border-radius: var(--pill-radius);
+      pointer-events: none;
+      background: var(--glass-gradient);
+      mix-blend-mode: screen;
+      z-index: 2; 
+    }
+    
+    /* HELPER: Link trim classes to CSS variables */
+    .pill__trim--tl { --active: var(--trim-tl); }
+    .pill__trim--tr { --active: var(--trim-tr); }
+    .pill__trim--br { --active: var(--trim-br); }
+    .pill__trim--bl { --active: var(--trim-bl); }
+    .pill__corner-trim--tl { --active: var(--corner-tl); }
+    .pill__corner-trim--tr { --active: var(--corner-tr); }
+    .pill__corner-trim--br { --active: var(--corner-br); }
+    .pill__corner-trim--bl { --active: var(--corner-bl); }
+
+
+    /* ----------------------------------------------------------- */
+    /* --- 1. STOCK TICKER CONFIGURATION (Independent) --- */
+    /* ----------------------------------------------------------- */
+    .ticker-card {
+        /* --- GLASS SETTINGS --- */
+        --pill-radius: 15px;
+        --trim-size: 0.8px;
+        --corner-thick: 0.5px;
+        --trim-color: rgba(217, 217, 217, 1.05);
+        --pill-bg: rgba(31, 33, 34, 0.1);
+        --gloss-opacity: 0.015;
+        
+        /* --- CORNER & FADE CONTROLS --- */
+        /* Fade Start: % of the line that is solid black before fading */
+        --fade-start: 5%;
+        
+        /* Independent Fade Lengths */
+        --fade-h: 54px; /* Horizontal Fade Length */
+        --fade-v: 150px; /* Vertical Fade Length */
+        
+        /* Surface Glow Length */
+        --trim-len: 150px; 
+        
+        /* Physical Line Dimensions (Container Size) */
+        --corner-w: 20%; /* Horizontal reach */
+        --corner-h: 80%; /* Vertical reach */
+
+        /* --- TEXT SETTINGS --- */
+        --badge-size: 13px; /* Size of the % text */
+        
+        /* --- ARROW CONTROLS (Updated) --- */
+        --arrow-size: 14px;        
+        --arrow-stroke: 2.5px;     
+        --arrow-tail-len: 21px;    
+        
+        /* Independent Offsets for Red vs Green Arrows */
+        --arrow-green-x: 1px;
+        --arrow-green-y: -1px;
+        --arrow-red-x: 0px;
+        --arrow-red-y: 1px;  
+        
+        /* --- BADGE GLASS TEXTURE --- */
+        --badge-glass-opacity: 0.45; /* Opacity of the white glare */
+        --badge-border-opacity: 0.6; /* Opacity of the inner glass ridge */
+      
+        /* --- SHADOW & TEXTURE CONTROLS --- */
+        --badge-glass-opacity: 0.45; 
+        --badge-border-opacity: 0.6;
+        --shadow-opacity: 0.1; /* Tone down drop shadows here (0.0 to 1.0) */
+
+        /* --- GRAPH EFFECTS (Blur/Glow) --- */
+        --graph-stroke-width: 2px;
+        --graph-blur: 0.75px;  
+        --graph-glow-spread: 5px; 
+        --graph-opacity: 0.9;
+
+        /* Independent Gloss Gradient */
+        --glass-gradient: 
+            linear-gradient(110deg, rgba(217,217,217,0.03) 1%, rgba(217,217,217,var(--gloss-opacity)) 15%, rgba(217,217,217,0.001) 75%),
+            linear-gradient(170deg, rgba(217,217,217,0.03) 0.5%, rgba(217,217,217,var(--gloss-opacity)) 25%, rgba(217,217,217,0.001) 75%),
+            linear-gradient(-125deg, rgba(0,0,0,0.03) 10%, rgba(0,0,0,var(--gloss-opacity)) 28%, rgba(0,0,0,0.001) 75%),
+            linear-gradient(-8deg, rgba(0,0,0,0.325) 1%, rgba(0,0,0,var(--gloss-opacity)) 40%, rgba(3,42,52,.001) 75%),
+            linear-gradient(55deg, rgba(0,0,0,0.15) 5%, rgba(0,0,0,var(--gloss-opacity)) 25%, rgba(255,255,255,0.001) 75%);
+
+        /* --- Layout Specs --- */
+        position: absolute;
+        top: 167px;
+        width: 220px;
+        height: 148px;
+        border-radius: var(--pill-radius);
+        
+        /* --- Corner Toggles --- */
+        --trim-tl: 1; --trim-tr: 1; --trim-br: 1; --trim-bl: 1;
+        --corner-tl: 1; --corner-tr: 0; --corner-br: 1; --corner-bl: 0;
+    }
+
+    .card-sp500 { left: 51px; }
+    .card-btc   { left: 303px; }
+    .card-vix   { left: 555px; } 
+
+    .ticker-name {
+        position: absolute;
+        left: 12px; 
+        top: 11px;  
+        font-family: 'Roboto';
+        font-weight: 700;
+        font-size: 16px;
+        color: rgba(191, 203, 210, 0.75);
+    }
+    
+    .ticker-price {
+        position: absolute;
+        left: 12px;  
+        bottom: 8px;
+        font-family: 'Roboto';
+        font-weight: 700;
+        font-size: 16px;
+        color: rgba(191, 203, 210, 0.75);
+    }
+    
+    .ticker-graph {
+        position: absolute;
+        left: 2px; 
+        top: 43px;
+        /* Apply neon effects */
+        filter: drop-shadow(0 0 var(--graph-glow-spread) var(--glow-color));
+        opacity: var(--graph-opacity);
+    }
+    
+    /* Graph Styles */
+    .graph-sp500 { --glow-color: rgba(195, 255, 0, 0.4); }
+    .graph-sp500 path {
+        stroke: #C3FF00;
+        stroke-width: var(--graph-stroke-width);
+        fill: none;
+        /* Additional blur for neon core */
+        filter: blur(var(--graph-blur)); 
+    }
+
+    .graph-btc { --glow-color: rgba(255, 59, 59, 0.4); }
+    .graph-btc path {
+        stroke: #FF3B3B;
+        stroke-width: var(--graph-stroke-width);
+        fill: none;
+        filter: blur(var(--graph-blur));
+    }
+
+    .graph-vix { --glow-color: rgba(195, 255, 0, 0.4); }
+    .graph-vix path {
+        stroke: #C3FF00;
+        stroke-width: var(--graph-stroke-width);
+        fill: none;
+        filter: blur(var(--graph-blur));
+    }
+
+    .price-rect {
+        position: absolute;
+        width: 75.69px;
+        height: 23.79px;
+        left: 129px;
+        top: 11px;
+        border-radius: 5px;
+        mix-blend-mode: exclusion;
+        backdrop-filter: blur(2px);
+    }
+  
+    .price-rect::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        border-radius: 5px; /* --- ADDED THIS LINE TO FIX SQUARED EDGES --- */
+        background: linear-gradient(60deg, rgba(217,217,217,0.2) 0%, rgba(217,217,217,0) 30%),
+        linear-gradient(190deg, rgba(0,0,0,0.09) 0%, rgba(217,217,217,0) 45%);
+        /* Subtle inner border */
+        box-shadow: inset 0 1px 1px rgba(217,217,217,0.01);
+        pointer-events: none;
+    }
+
+    .badge-content {
+        position: absolute;
+        left: 142px; 
+        top: 15.5px; 
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+
+    /* ----------------------------------------------------------- */
+    /* --- 2. MARKET SUMMARY CONFIGURATION (Independent) --- */
+    /* ----------------------------------------------------------- */
+    .market-card {
+        /* --- GLASS SETTINGS --- */
+        --pill-radius: 15px;
+        --trim-size: 0.8px;
+        --corner-thick: 0.5px;
+        --trim-color: rgba(217, 217, 217, 1.05);
+        --pill-bg: rgba(31, 33, 34, 0.1);
+        --gloss-opacity: 0.01;
+
+        /* --- CORNER & FADE CONTROLS --- */
+        --fade-start: 20%;
+        
+        /* Independent Fade Lengths */
+        --fade-h: 1100px; /* Long horizontal fade for top/bottom lines */
+        --fade-v: 135px;  /* Short vertical fade for side lines 
+        
+        --trim-len: 600px;  
+
+        /* Physical Line Dimensions */
+        --corner-w: 500%; /* Stretch to meet in middle */
+        --corner-h: 170%; 
+
+        /* Independent Gloss Gradient */
+        --glass-gradient: 
+            linear-gradient(-175deg, rgba(217,217,217,0.03) 1%, rgba(217,217,217,var(--gloss-opacity)) 30%, rgba(217,217,217,0.001) 75%),
+            linear-gradient(181deg, rgba(217,217,217,0.05) 1%, rgba(0,0,0,var(--gloss-opacity)) 12.5%, rgba(3,42,52,.001) 75%),
+            linear-gradient(-3.5deg, rgba(0,0,0,0.05) 0.5%, rgba(217,217,217,var(--gloss-opacity)) 25%, rgba(217,217,217,0.001) 75%),
+            linear-gradient(-6deg, rgba(0,0,0,0.05) 10%, rgba(0,0,0,var(--gloss-opacity)) 30%, rgba(0,0,0,0.001) 75%),
+            linear-gradient(55deg, rgba(0,0,0,1.15) 5%, rgba(0,0,0,var(--gloss-opacity)) 25%, rgba(255,255,255,0.001) 75%);
+
+        /* --- Layout Specs --- */
+        position: absolute;
+        width: 1056px;
+        height: 148px;
+        left: 809px;
+        top: 167px;
+        border-radius: var(--pill-radius);
+
+        /* --- Corner Toggles --- */
+        --trim-tl: 1; --trim-tr: 1; --trim-br: 1; --trim-bl: 1;
+        --corner-tl: 0; --corner-tr: 1; --corner-br: 0; --corner-bl: 1;
+    }
+
+    .market-header {
+        position: absolute;
+        left: 25px; 
+        top: 11px; 
+        font-family: 'Roboto';
+        font-weight: 700;
+        font-size: 16px;
+        color: rgba(191, 203, 210, 0.75);
+        text-shadow: 0px 4px 4px rgba(0, 0, 0, 0.25);
+        z-index: 3;
+    }
+    
+    .market-body {
+        position: absolute;
+        left: 25px; 
+        top: 45px; 
+        width: 1011px;
+        font-family: 'Roboto';
+        font-weight: 300;
+        font-size: 14px;
+        line-height: 150%;
+        letter-spacing: 0.02em;
+        color: #BFCBD2;
+        text-shadow: 0px 4px 4px rgba(0, 0, 0, 0.25);
+        z-index: 3;
+    }
+    
+    .market-date {
+        position: absolute;
+        right: 25px;
+        top: 11px; 
+        font-family: 'Roboto';
+        font-weight: 700;
+        font-size: 12px;
+        color: rgba(191, 203, 210, 0.5);
+        text-shadow: 0px 4px 4px rgba(0, 0, 0, 0.25);
+        z-index: 3;
+    }
+
+
+    /* ----------------------------------------------------------- */
+    /* --- SHARED ASSETS --- */
+    /* ----------------------------------------------------------- */
+    
+    /* --- LAYER 1: GRAPHICS (UNDER GLASS) --- */
+    .layer-graphics {
+        position: absolute;
+        inset: 0;
+        z-index: 1;
+        pointer-events: none;
+    }
+
+    .rect-green { background: #C3FF00; }
+    .rect-red   { background: linear-gradient(90deg, #FF3B3B 0%, #FF0000 96.15%); }
+
+    /* --- LAYER 3: DATA TEXT (OVER GLASS) --- */
+    .layer-data {
+        position: absolute;
+        inset: 0;
+        z-index: 3; /* Sits on top of glass */
+        pointer-events: none;
+    }
+
+    .badge-text {
+        font-family: 'Roboto';
+        font-weight: 500;
+        font-size: var(--badge-size); /* Controlled via Ticker settings */
+        line-height: 100%;
+    }
+    .text-green { color: #425600; text-shadow: 0px 0px 1px rgba(66, 86, 0, var(--shadow-opacity)); }
+    .text-red   { color: #560000; text-shadow: 0px 0px 1px rgba(86, 0, 0, var(--shadow-opacity)); }
+    
+    .badge-arrow {
+        width: var(--arrow-size); 
+        height: var(--arrow-size);
+        display: block;
+        /* Default transform, overridden by specific classes */
+        transform: translate(0, 0); 
+    }
+    .badge-arrow path, .badge-arrow line, .badge-arrow polyline {
+        stroke-width: var(--arrow-stroke); 
+    }
+    .arrow-tail {
+        stroke-dasharray: var(--arrow-tail-len) 100;
+        stroke-dashoffset: 0;
+    }
+    
+    /* Updated shadows to be softer */
+    .arrow-green { 
+        color: #425600; 
+        filter: drop-shadow(-1px -1px 1px rgba(66, 86, 0, var(--shadow-opacity)));
+        transform: translate(var(--arrow-green-x), var(--arrow-green-y));
+    }
+    .arrow-red { 
+        color: #560000; 
+        filter: drop-shadow(-1px -1px 1px rgba(86, 0, 0, var(--shadow-opacity)));
+        transform: translate(var(--arrow-red-x), var(--arrow-red-y));
+    }
+
+</style>
+</head>
+<body>
+
+    <!-- 1. S&P 500 CARD -->
+    <div class="ticker-card card-sp500 glass-panel">
+        <div class="layer-graphics">
+            <svg class="ticker-graph graph-sp500" viewBox="0 0 216 71" preserveAspectRatio="none">
+                <!-- CHANGED: Detailed Smooth Uptrend -->
+                <path d="M0 60 C 5 60, 10 52, 15 55 S 25 65, 35 58 S 50 45, 60 48 S 75 52, 85 45 S 95 38, 105 40 S 120 45, 130 35 S 145 28, 155 30 S 170 20, 180 22 S 200 10, 216 12" />
+            </svg>
+            <div class="price-rect rect-green"></div>
+        </div>
+        
+        <div class="glass-overlay"></div>
+        <div class="pill__trim pill__trim--tl"></div><div class="pill__trim pill__trim--br"></div><div class="pill__trim pill__trim--tr"></div><div class="pill__trim pill__trim--bl"></div>
+        <div class="pill__corner-trim pill__corner-trim--tl"></div><div class="pill__corner-trim pill__corner-trim--br"></div><div class="pill__corner-trim pill__corner-trim--bl"></div><div class="pill__corner-trim pill__corner-trim--tr"></div>
+
+        <div class="layer-data">
+            <div class="ticker-name">S&P 500</div>
+            <div class="ticker-price">$6,614.00</div>
+            <div class="badge-content">
+                <!-- SVG Updated for Variable Tail -->
+                <svg class="badge-arrow arrow-green" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                    <line class="arrow-tail" x1="17" y1="7" x2="0" y2="24"></line>
+                    <polyline points="7 7 17 7 17 17"></polyline>
+                </svg>
+                <div class="badge-text text-green">1.25%</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. BTC CARD -->
+    <div class="ticker-card card-btc glass-panel">
+        <div class="layer-graphics">
+            <svg class="ticker-graph graph-btc" viewBox="0 0 216 71" preserveAspectRatio="none">
+                 <!-- CHANGED: Smooth Volatile Downtrend -->
+                <path d="M0 20 C 5 18, 15 25, 25 22 S 40 10, 50 15 S 65 35, 75 30 S 90 50, 100 55 S 115 45, 125 50 S 140 65, 150 60 S 170 55, 180 62 S 200 68, 216 65" />
+            </svg>
+            <div class="price-rect rect-red"></div>
+        </div>
+
+        <div class="glass-overlay"></div>
+        <div class="pill__trim pill__trim--tl"></div><div class="pill__trim pill__trim--br"></div><div class="pill__trim pill__trim--tr"></div><div class="pill__trim pill__trim--bl"></div>
+        <div class="pill__corner-trim pill__corner-trim--tl"></div><div class="pill__corner-trim pill__corner-trim--br"></div><div class="pill__corner-trim pill__corner-trim--bl"></div><div class="pill__corner-trim pill__corner-trim--tr"></div>
+
+        <div class="layer-data">
+            <div class="ticker-name">BTC</div>
+            <div class="ticker-price">$99,590.01</div>
+            <div class="badge-content">
+                <svg class="badge-arrow arrow-red" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                    <line class="arrow-tail" x1="17" y1="17" x2="0" y2="0"></line>
+                    <polyline points="17 7 17 17 7 17"></polyline>
+                </svg>
+                <div class="badge-text text-red">1.25%</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. VIX CARD -->
+    <div class="ticker-card card-vix glass-panel">
+        <div class="layer-graphics">
+            <svg class="ticker-graph graph-vix" viewBox="0 0 216 71" preserveAspectRatio="none">
+                 <!-- CHANGED: Smooth Sharp Volatility -->
+                <path d="M0 55 C 8 50, 15 65, 25 55 S 40 35, 50 40 S 65 55, 75 50 S 90 25, 100 30 S 115 50, 125 45 S 140 30, 150 35 S 170 15, 180 20 S 200 25, 216 18" />
+            </svg>
+            <div class="price-rect rect-green"></div>
+        </div>
+
+        <div class="glass-overlay"></div>
+        <div class="pill__trim pill__trim--tl"></div><div class="pill__trim pill__trim--br"></div><div class="pill__trim pill__trim--tr"></div><div class="pill__trim pill__trim--bl"></div>
+        <div class="pill__corner-trim pill__corner-trim--tl"></div><div class="pill__corner-trim pill__corner-trim--br"></div><div class="pill__corner-trim pill__corner-trim--bl"></div><div class="pill__corner-trim pill__corner-trim--tr"></div>
+
+        <div class="layer-data">
+            <div class="ticker-name">VIX</div>
+            <div class="ticker-price">$19.76</div>
+            <div class="badge-content">
+                <!-- SVG Updated for Variable Tail -->
+                <svg class="badge-arrow arrow-green" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                    <line class="arrow-tail" x1="17" y1="7" x2="0" y2="24"></line>
+                    <polyline points="7 7 17 7 17 17"></polyline>
+                </svg>
+                <div class="badge-text text-green">1.25%</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. MARKET SUMMARY CARD -->
+    <div class="market-card glass-panel">
+        <div class="glass-overlay"></div>
+        <div class="pill__trim pill__trim--tl"></div><div class="pill__trim pill__trim--br"></div><div class="pill__trim pill__trim--tr"></div><div class="pill__trim pill__trim--bl"></div>
+        <div class="pill__corner-trim pill__corner-trim--tl"></div><div class="pill__corner-trim pill__corner-trim--br"></div><div class="pill__corner-trim pill__corner-trim--bl"></div><div class="pill__corner-trim pill__corner-trim--tr"></div>
+
+        <div class="market-header">Market Summary</div>
+        <div class="market-body">
+            The S&P 500 and Nasdaq shook off a four-day losing streak, rising modestly as investors awaited Nvidia's earnings. Concerns linger over tech valuations and AI spending, but a return to buying was seen in tech names ahead of the key earnings release.<br>
+            Bitcoin fell nearly 5% to around $88,500, marking a 30% drop from its October peak. Analyst sentiment is grim as outflows from spot bitcoin ETFs accelerate and the current drawdown ranks among the worst since 2017.
+        </div>
+        <div class="market-date">Updated Nov 19</div>
+    </div>
+
+</body>
+</html>
